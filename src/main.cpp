@@ -45,7 +45,7 @@ public:
                 auto channelGroup = audioEngine->m_backgroundMusicChannel;
                 if (channelGroup != nullptr) {
                     // fallback length
-                    unsigned int lengthMs = 0;
+                    unsigned int lengthMs = audioEngine->getMusicLengthMS(1);
                     
                     // Simple nullptr check instead of try/catch
                     if (audioEngine && audioEngine->m_backgroundMusicChannel) {
