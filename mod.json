@@ -10,5 +10,18 @@
 	"name": "Level Info Music",
 	"version": "v1.0.0",
 	"developer": "ArcticWoof",
-	"description": "Plays a preview of the music level."
+	"description": "Plays a preview of the music level.",
+	"tags": [
+		"enhancement",
+		"music"
+	],
+
+	"settings":{
+		"fadeTime": {
+			"type": "float",
+			"name": "Fade Time",
+			"description": "The time it takes for the music to fade in/out.",
+			"default": 5.0
+		}
+	}
 }

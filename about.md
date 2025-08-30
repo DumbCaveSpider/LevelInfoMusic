@@ -1,5 +1,9 @@
 # Level Info Music
-Plays a preview of the music level while you are in the level info screen.
+Automatically plays a preview of the music level while you are in the level info screen.
 
-### Credits
-- Cheeseworks for making the mod icon
+<cy>You can change the Fade Time at the Mod Settings!</c>
+
+## Credits
+- [Cheeseworks](user:6408873) for making the mod icon
+
+![king](arcticwoof.twitch_interactive/king.png)

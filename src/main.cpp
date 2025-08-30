@@ -59,6 +59,9 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         // check if the music for this level is downloaded
         auto musicManager = MusicDownloadManager::sharedState();
 
+        // get the fadetime from the settings
+        float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+
         // store the current level's song ID for later use
         m_fields->m_currentLevelSongID = level->m_songID;
 
@@ -91,7 +94,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
                 {
 
                     // fades in the custom song and fade out the background music
-                    fmod->playMusic(songPath, true, 1.0f, 1);
+                    fmod->playMusic(songPath, true, fadeTime, 1);
                     log::debug("Playing custom song: {}", songPath);
                 }
             }
@@ -110,6 +113,9 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         auto musicManager = MusicDownloadManager::sharedState();
         auto gm = GameManager::sharedState();
 
+        // get the fadetime from the settings
+        float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+
         // unregister and cleanup the delegate when leaving
         if (m_fields->m_musicDelegate)
         {
@@ -117,10 +123,9 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             delete m_fields->m_musicDelegate;
             m_fields->m_musicDelegate = nullptr;
         }
-        fmod->fadeInMusic(1.0f, m_fields->m_originalVolume);
+        fmod->fadeInMusic(fadeTime, m_fields->m_originalVolume);
         gm->playMenuMusic();
 
         LevelInfoLayer::onBack(sender);
     }
 };
-
