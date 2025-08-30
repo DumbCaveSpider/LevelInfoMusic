@@ -112,7 +112,7 @@ public:
         // FORCEFULLY play music regardless of conditions
         if (level->m_songID != 0)
         {
-            log::info("FORCING level custom music playback for song ID: {}", level->m_songID);
+            log::info("level custom music playback for song ID: {}", level->m_songID);
 
             // Try to play the song immediately if downloaded, otherwise force download
             if (musicManager->isSongDownloaded(level->m_songID))
@@ -169,7 +169,7 @@ public:
                 {
                     float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                     bool playMid = Mod::get()->getSettingValue<bool>("playMid");
-                    log::info("FORCED: Download completed, playing custom song: {}", songPath);
+                    log::info("Download completed, playing custom song: {}", songPath);
                     playCustomSong(songPath, fadeTime, playMid);
                 }
             }
@@ -198,7 +198,7 @@ public:
         if (m_fields->m_retryCount < m_fields->MAX_RETRIES)
         {
             m_fields->m_retryCount++;
-            log::warn("FORCED RETRY {}: Music not playing, attempting to force play again", m_fields->m_retryCount);
+            log::warn("retry {}: Music not playing, attempting to force play again", m_fields->m_retryCount);
 
             // Force retry music initialization
             auto level = m_fields->m_currentLevel;
@@ -213,7 +213,7 @@ public:
                         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
                         playCustomSong(songPath, fadeTime, playMid);
-                        log::info("FORCED RETRY: Re-attempting custom song playback");
+                        log::info("Re-attempting custom song playback");
                     }
                 }
             }
@@ -222,7 +222,7 @@ public:
                 // Retry built-in track
                 float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                 fmod->playMusic("", false, fadeTime, level->m_audioTrack);
-                log::info("FORCED RETRY: Re-attempting built-in track playback");
+                log::info("Re-attempting built-in track playback");
             }
 
             // Schedule another check if we haven't exceeded max retries
@@ -234,7 +234,7 @@ public:
         }
         else
         {
-            log::error("FORCED FAILURE: Failed to play music after {} retries", m_fields->MAX_RETRIES);
+            log::error("Failed to play music after {} retries", m_fields->MAX_RETRIES);
         }
     }
 
@@ -246,10 +246,9 @@ public:
         // get the fadetime from the settings
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
 
-        // Stop the current level music forcefully using cross-platform method
-        // Use fadeInMusic with 0 volume to effectively stop the music
-        fmod->fadeInMusic(0.1f, 0.0f);
-        log::info("FORCED: Leaving LevelInfoLayer, level music stopped");
+        // Stop the current level music forcefully
+        fmod->fadeInMusic(fadeTime, 0.0f);
+        log::info("Leaving LevelInfoLayer, level music stopped");
 
         // Fade back to menu music
         fmod->fadeInMusic(fadeTime, m_fields->m_originalVolume);
