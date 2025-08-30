@@ -30,7 +30,7 @@
 		"playMid":{
 			"type": "bool",
 			"name": "Preview Music mid-song",
-			"description": "Plays the music at the middle of the playback.",
+			"description": "Plays the music at the middle of the playback. <cy>Does not work on MacOS yet.</cy>",
 			"default": true
 		}
 	}

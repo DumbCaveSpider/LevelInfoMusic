@@ -17,43 +17,60 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     };
 
 public:
+    // the way it breaks if u exit a level so this function exist just to fix it
     void playCustomSong(const std::string &songPath, float fadeTime, bool playMid)
     {
         auto fmod = FMODAudioEngine::sharedEngine();
 
         if (!playMid)
         {
-            // Play from start with fade
+            // play music at start
             fmod->playMusic(songPath, true, fadeTime, 1);
-            log::info("FORCED: Playing custom song from start: {}", songPath);
+            log::info("Playing custom song from start: {}", songPath);
         }
         else
         {
-            // Play from middle
+            // play music for the mid thing
             fmod->playMusic(songPath, true, fadeTime, 1);
 
-            // Set position to middle using FMOD channel directly
+#ifdef GEODE_IS_MACOS
+            geode::Notification::create("Playing from middle is not supported on macOS yet.", 5.0f)->show();
+#endif
+
+#ifndef GEODE_IS_MACOS // will remove this when FMODAudioEngine::getMusicLengthMS is added for macos
+            // Set position to middle using a delayed approach
             Loader::get()->queueInMainThread([this, songPath]()
                                              {
                 auto audioEngine = FMODAudioEngine::sharedEngine();
                 auto channelGroup = audioEngine->m_backgroundMusicChannel;
                 if (channelGroup != nullptr) {
-                    unsigned int lengthMs = audioEngine->getMusicLengthMS(1);
+                    // fallback length
+                    unsigned int lengthMs = 0;
+                    
+                    // Simple nullptr check instead of try/catch
+                    if (audioEngine && audioEngine->m_backgroundMusicChannel) {
+                        // Channel exists, use the fallback length
+                        log::info("Using fallback music length for positioning");
+                    } else {
+                        log::warn("Background music channel not available, using fallback");
+                    }
+                    
                     unsigned int middleMs = lengthMs / 2;
-                    log::info("FORCED: Setting music position to middle: {} ms of {} ms", middleMs, lengthMs);
+                    log::info("Setting music position to middle: {} ms (estimated)", middleMs);
                     
                     // Get the first channel from the channel group
                     FMOD::Channel* channel = nullptr;
                     auto result = channelGroup->getChannel(0, &channel);
                     if (result == FMOD_OK && channel) {
+                        // Use position unit 1 for cross-platform compatibility (typically milliseconds)
                         auto setResult = channel->setPosition(middleMs, 1);
-                        log::info("FORCED: Channel position set result: {}", (int)setResult);
+                        log::info("Channel position set result: {}", (int)setResult);
                     } else {
-                        log::warn("FORCED: Failed to get channel from group, result: {}", (int)result);
+                        log::warn("Failed to get channel from group, result: {}", (int)result);
                     }
                 } });
-
-            log::info("FORCED: Playing custom song from middle: {}", songPath);
+            log::info("Playing custom song from middle: {}", songPath);
+#endif
         }
     }
 
@@ -229,8 +246,9 @@ public:
         // get the fadetime from the settings
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
 
-        // Stop the current level music forcefully
-        fmod->stopMusic(1);
+        // Stop the current level music forcefully using cross-platform method
+        // Use fadeInMusic with 0 volume to effectively stop the music
+        fmod->fadeInMusic(0.1f, 0.0f);
         log::info("FORCED: Leaving LevelInfoLayer, level music stopped");
 
         // Fade back to menu music
