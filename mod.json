@@ -15,6 +15,10 @@
 		"enhancement",
 		"music"
 	],
+	"links": {
+		"community": "https://discord.gg/gXcppxTNxC",
+		"homepage": "https://arcticwoof.com.au"
+	},
 
 	"settings":{
 		"fadeTime": {
@@ -22,6 +26,12 @@
 			"name": "Fade Time",
 			"description": "The time it takes for the music to fade in/out.",
 			"default": 5.0
+		},
+		"playMid":{
+			"type": "bool",
+			"name": "Preview Music mid-song",
+			"description": "Plays the music at the middle of the playback.",
+			"default": true
 		}
 	}
 }

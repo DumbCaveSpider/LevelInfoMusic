@@ -3,126 +3,237 @@
 
 using namespace geode::prelude;
 
-class MyLevelInfoLayer;
-
-// Helper class to handle music download events
-class LevelMusicDelegate : public MusicDownloadDelegate
-{
-public:
-    MyLevelInfoLayer *m_levelInfoLayer = nullptr;
-    int m_targetSongID = 0;
-
-    LevelMusicDelegate(MyLevelInfoLayer *layer, int songID) : m_levelInfoLayer(layer), m_targetSongID(songID) {}
-
-    virtual void downloadSongFinished(int songID) override
-    {
-        if (songID == m_targetSongID && m_levelInfoLayer)
-        {
-            log::info("Song download completed for level! Playing song ID: {}", songID);
-
-            auto fmod = FMODAudioEngine::sharedEngine();
-            auto musicManager = MusicDownloadManager::sharedState();
-
-            // get the file path and play the song
-            auto songPath = musicManager->pathForSong(songID);
-            if (!songPath.empty())
-            {
-                fmod->playMusic(songPath, true, 1.0f, 1);
-                log::debug("Auto-playing downloaded song: {}", songPath);
-            }
-        }
-    }
-
-    virtual void downloadSongFailed(int songID, GJSongError error) override
-    {
-        if (songID == m_targetSongID)
-        {
-            log::warn("Failed to download song {} for current level", songID);
-        }
-    }
-};
-
 class $modify(MyLevelInfoLayer, LevelInfoLayer)
 {
     struct Fields
     {
         float m_originalVolume = 0.0f;
         int m_currentLevelSongID = 0;
-        LevelMusicDelegate *m_musicDelegate = nullptr;
+        void *m_musicDelegate = nullptr;
+        bool m_hasInitialized = false;
+        GJGameLevel *m_currentLevel = nullptr;
+        int m_retryCount = 0;
+        static const int MAX_RETRIES = 5;
     };
+
+public:
+    void playCustomSong(const std::string &songPath, float fadeTime, bool playMid)
+    {
+        auto fmod = FMODAudioEngine::sharedEngine();
+
+        if (!playMid)
+        {
+            // Play from start with fade
+            fmod->playMusic(songPath, true, fadeTime, 1);
+            log::info("FORCED: Playing custom song from start: {}", songPath);
+        }
+        else
+        {
+            // Play from middle
+            fmod->playMusic(songPath, true, fadeTime, 1);
+
+            // Set position to middle using FMOD channel directly
+            Loader::get()->queueInMainThread([this, songPath]()
+                                             {
+                auto audioEngine = FMODAudioEngine::sharedEngine();
+                auto channelGroup = audioEngine->m_backgroundMusicChannel;
+                if (channelGroup != nullptr) {
+                    unsigned int lengthMs = audioEngine->getMusicLengthMS(1);
+                    unsigned int middleMs = lengthMs / 2;
+                    log::info("FORCED: Setting music position to middle: {} ms of {} ms", middleMs, lengthMs);
+                    
+                    // Get the first channel from the channel group
+                    FMOD::Channel* channel = nullptr;
+                    auto result = channelGroup->getChannel(0, &channel);
+                    if (result == FMOD_OK && channel) {
+                        auto setResult = channel->setPosition(middleMs, 1);
+                        log::info("FORCED: Channel position set result: {}", (int)setResult);
+                    } else {
+                        log::warn("FORCED: Failed to get channel from group, result: {}", (int)result);
+                    }
+                } });
+
+            log::info("FORCED: Playing custom song from middle: {}", songPath);
+        }
+    }
 
     bool init(GJGameLevel *level, bool challenge)
     {
         if (!LevelInfoLayer::init(level, challenge))
             return false;
 
+        // Store the level reference for later use
+        m_fields->m_currentLevel = level;
+        m_fields->m_hasInitialized = true;
+
+        // Initialize music on first load
+        initializeLevelMusic();
+
+        return true;
+    }
+
+    void initializeLevelMusic()
+    {
+        auto level = m_fields->m_currentLevel;
+        if (!level)
+            return;
+
         // check if the music for this level is downloaded
         auto musicManager = MusicDownloadManager::sharedState();
 
-        // get the fadetime from the settings
+        // get da settings value
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+        bool playMid = Mod::get()->getSettingValue<bool>("playMid");
 
         // store the current level's song ID for later use
         m_fields->m_currentLevelSongID = level->m_songID;
 
-        // register as a download delegate to listen for download completion
+        // get the FMOD audio engine and store original volume
+        auto fmod = FMODAudioEngine::sharedEngine();
+        m_fields->m_originalVolume = fmod->getBackgroundMusicVolume();
+
+        // FORCEFULLY play music regardless of conditions
         if (level->m_songID != 0)
         {
-            m_fields->m_musicDelegate = new LevelMusicDelegate(this, level->m_songID);
-            musicManager->addMusicDownloadDelegate(m_fields->m_musicDelegate);
-        }
+            log::info("FORCING level custom music playback for song ID: {}", level->m_songID);
 
-        if (level->m_songID != 0 && !musicManager->isSongDownloaded(level->m_songID))
-        {
-            log::warn("Level custom music not downloaded: {} - Starting download...", level->m_songID);
-            // start downloading the song if it's not available
-            musicManager->downloadSong(level->m_songID);
-        }
-        else
-        {
-            if (level->m_songID != 0)
+            // Try to play the song immediately if downloaded, otherwise force download
+            if (musicManager->isSongDownloaded(level->m_songID))
             {
-                log::debug("Level uses custom music ID: {}", level->m_songID);
-
-                // get the FMOD audio engine and store original volume
-                auto fmod = FMODAudioEngine::sharedEngine();
-                m_fields->m_originalVolume = fmod->getBackgroundMusicVolume();
-
-                // for custom songs, we need to get the file path and play it
                 auto songPath = musicManager->pathForSong(level->m_songID);
                 if (!songPath.empty())
                 {
+                    log::info("Custom song is available, playing immediately: {}", songPath);
+                    playCustomSong(songPath, fadeTime, playMid);
 
-                    // fades in the custom song and fade out the background music
-                    fmod->playMusic(songPath, true, fadeTime, 1);
-                    log::debug("Playing custom song: {}", songPath);
+                    // Schedule a retry check to ensure music is actually playing
+                    scheduleRetryCheck();
+                }
+                else
+                {
+                    log::warn("Song reported as downloaded but path is empty, forcing download: {}", level->m_songID);
+                    musicManager->downloadSong(level->m_songID);
+                    // Schedule check to try again once download completes
+                    scheduleDownloadCheck();
                 }
             }
             else
             {
-                log::debug("Level uses built-in audio track: {}", level->m_audioTrack);
+                log::info("Custom song not downloaded, forcing download: {}", level->m_songID);
+                musicManager->downloadSong(level->m_songID);
+                // Schedule check to try again once download completes
+                scheduleDownloadCheck();
             }
         }
+        else
+        {
+            log::info("Level uses built-in audio track: {}, playing default music", level->m_audioTrack);
+            // Force play the built-in track
+            fmod->playMusic("", false, fadeTime, level->m_audioTrack);
 
-        return true;
+            // Schedule a retry check for built-in tracks too
+            scheduleRetryCheck();
+        }
+    }
+
+    void scheduleDownloadCheck()
+    {
+        // Check every 2 seconds for download completion
+        Loader::get()->queueInMainThread([this]()
+                                         {
+            auto level = m_fields->m_currentLevel;
+            if (!level) return;
+
+            auto musicManager = MusicDownloadManager::sharedState();
+            if (level->m_songID != 0 && musicManager->isSongDownloaded(level->m_songID))
+            {
+                auto songPath = musicManager->pathForSong(level->m_songID);
+                if (!songPath.empty())
+                {
+                    float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+                    bool playMid = Mod::get()->getSettingValue<bool>("playMid");
+                    log::info("FORCED: Download completed, playing custom song: {}", songPath);
+                    playCustomSong(songPath, fadeTime, playMid);
+                }
+            }
+            else
+            {
+                // Keep checking until download completes
+                scheduleDownloadCheck();
+            } });
+    }
+
+    void scheduleRetryCheck()
+    {
+        // Reset retry count
+        m_fields->m_retryCount = 0;
+
+        // Schedule a check to ensure music is playing
+        Loader::get()->queueInMainThread([this]()
+                                         { this->checkMusicAndRetry(); });
+    }
+
+    void checkMusicAndRetry()
+    {
+        auto fmod = FMODAudioEngine::sharedEngine();
+
+        // Check if music is actually playing
+        if (m_fields->m_retryCount < m_fields->MAX_RETRIES)
+        {
+            m_fields->m_retryCount++;
+            log::warn("FORCED RETRY {}: Music not playing, attempting to force play again", m_fields->m_retryCount);
+
+            // Force retry music initialization
+            auto level = m_fields->m_currentLevel;
+            if (level && level->m_songID != 0)
+            {
+                auto musicManager = MusicDownloadManager::sharedState();
+                if (musicManager->isSongDownloaded(level->m_songID))
+                {
+                    auto songPath = musicManager->pathForSong(level->m_songID);
+                    if (!songPath.empty())
+                    {
+                        float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+                        bool playMid = Mod::get()->getSettingValue<bool>("playMid");
+                        playCustomSong(songPath, fadeTime, playMid);
+                        log::info("FORCED RETRY: Re-attempting custom song playback");
+                    }
+                }
+            }
+            else if (level)
+            {
+                // Retry built-in track
+                float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+                fmod->playMusic("", false, fadeTime, level->m_audioTrack);
+                log::info("FORCED RETRY: Re-attempting built-in track playback");
+            }
+
+            // Schedule another check if we haven't exceeded max retries
+            if (m_fields->m_retryCount < m_fields->MAX_RETRIES)
+            {
+                Loader::get()->queueInMainThread([this]()
+                                                 { this->checkMusicAndRetry(); });
+            }
+        }
+        else
+        {
+            log::error("FORCED FAILURE: Failed to play music after {} retries", m_fields->MAX_RETRIES);
+        }
     }
 
     void onBack(CCObject *sender)
     {
         auto fmod = FMODAudioEngine::sharedEngine();
-        auto musicManager = MusicDownloadManager::sharedState();
         auto gm = GameManager::sharedState();
 
         // get the fadetime from the settings
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
 
-        // unregister and cleanup the delegate when leaving
-        if (m_fields->m_musicDelegate)
-        {
-            musicManager->removeMusicDownloadDelegate(m_fields->m_musicDelegate);
-            delete m_fields->m_musicDelegate;
-            m_fields->m_musicDelegate = nullptr;
-        }
+        // Stop the current level music forcefully
+        fmod->stopMusic(1);
+        log::info("FORCED: Leaving LevelInfoLayer, level music stopped");
+
+        // Fade back to menu music
         fmod->fadeInMusic(fadeTime, m_fields->m_originalVolume);
         gm->playMenuMusic();
 
