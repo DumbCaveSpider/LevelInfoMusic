@@ -33,10 +33,6 @@ public:
             // play music for the mid thing
             fmod->playMusic(songPath, true, fadeTime, 1);
 
-#ifdef GEODE_IS_MACOS
-            geode::Notification::create("Playing from middle is not supported on macOS yet.", 5.0f)->show();
-#endif
-
 #ifndef GEODE_IS_MACOS // will remove this when FMODAudioEngine::getMusicLengthMS is added for macos
             // Set position to middle using a delayed approach
             Loader::get()->queueInMainThread([this, songPath]()
