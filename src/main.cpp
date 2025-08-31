@@ -24,16 +24,21 @@ public:
 
         if (!playMid)
         {
+            // stop all music
+            fmod->stopAllMusic(true);
+
             // play music at start
             fmod->playMusic(songPath, true, fadeTime, 1);
             log::info("Playing custom song from start: {}", songPath);
         }
         else
         {
+            // stop all music
+            fmod->stopAllMusic(true);
+
             // play music for the mid thing
             fmod->playMusic(songPath, true, fadeTime, 1);
 
-#ifndef GEODE_IS_MACOS // will remove this when FMODAudioEngine::getMusicLengthMS is added for macos
             // Set position to middle using a delayed approach
             Loader::get()->queueInMainThread([this, songPath]()
                                              {
@@ -66,7 +71,6 @@ public:
                     }
                 } });
             log::info("Playing custom song from middle: {}", songPath);
-#endif
         }
     }
 
@@ -95,6 +99,7 @@ public:
         auto musicManager = MusicDownloadManager::sharedState();
 
         // get da settings value
+        // @geode-ignore(unknown-setting)
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
 
@@ -117,8 +122,9 @@ public:
                 if (!songPath.empty())
                 {
                     log::info("Custom song is available, playing immediately: {}", songPath);
+                    // stop all music
+                    fmod->stopAllMusic(true);
                     playCustomSong(songPath, fadeTime, playMid);
-
                     // Schedule a retry check to ensure music is actually playing
                     scheduleRetryCheck();
                 }
@@ -134,18 +140,177 @@ public:
             {
                 log::info("Custom song not downloaded, forcing download: {}", level->m_songID);
                 musicManager->downloadSong(level->m_songID);
+
                 // Schedule check to try again once download completes
                 scheduleDownloadCheck();
             }
         }
         else
         {
-            log::info("Level uses built-in audio track: {}, playing default music", level->m_audioTrack);
-            // Force play the built-in track
-            fmod->playMusic("", false, fadeTime, level->m_audioTrack);
-
-            // Schedule a retry check for built-in tracks too
-            scheduleRetryCheck();
+            // welcome to my wall of switch case statement :D
+            fmod->stopAllMusic(true);
+            auto gameDir = geode::dirs::getResourcesDir();
+            switch (level->m_audioTrack)
+            {
+            case 0:
+            {
+                auto audioPath = gameDir / "StereoMadness.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 1:
+            {
+                auto audioPath = gameDir / "BackOnTrack.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 2:
+            {
+                auto audioPath = gameDir / "Polargeist.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 3:
+            {
+                auto audioPath = gameDir / "DryOut.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 4:
+            {
+                auto audioPath = gameDir / "BaseAfterBase.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 5:
+            {
+                auto audioPath = gameDir / "CantLetGo.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 6:
+            {
+                auto audioPath = gameDir / "Jumper.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 7:
+            {
+                auto audioPath = gameDir / "TimeMachine.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 8:
+            {
+                auto audioPath = gameDir / "Cycles.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 9:
+            {
+                auto audioPath = gameDir / "xStep.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 10:
+            {
+                auto audioPath = gameDir / "Clutterfunk.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 11:
+            {
+                auto audioPath = gameDir / "TheoryOfEverything.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 12:
+            {
+                auto audioPath = gameDir / "Electroman.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 13:
+            {
+                auto audioPath = gameDir / "Clubstep.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 14:
+            {
+                auto audioPath = gameDir / "Electrodynamix.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 15:
+            {
+                auto audioPath = gameDir / "HexagonForce.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 16:
+            {
+                auto audioPath = gameDir / "BlastProcessing.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 17:
+            {
+                // @geode-ignore(unknown-resource)
+                auto audioPath = gameDir / "TheoryOfEverything2.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 18:
+            {
+                auto audioPath = gameDir / "GeometricalDominator.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 19:
+            {
+                auto audioPath = gameDir / "Deadlocked.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 20:
+            {
+                auto audioPath = gameDir / "Fingerdash.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            case 21:
+            {
+                auto audioPath = gameDir / "Dash.mp3";
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
+                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
+                break;
+            }
+            default:
+                log::debug("Unknown built-in track ID: {}", level->m_audioTrack);
+                break;
+            }
         }
     }
 
@@ -166,6 +331,10 @@ public:
                     float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                     bool playMid = Mod::get()->getSettingValue<bool>("playMid");
                     log::info("Download completed, playing custom song: {}", songPath);
+
+                    auto fmod = FMODAudioEngine::sharedEngine();
+                    // stop all music
+                    fmod->stopAllMusic(true);
                     playCustomSong(songPath, fadeTime, playMid);
                 }
             }
@@ -208,6 +377,7 @@ public:
                     {
                         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
+                        fmod->stopAllMusic(true);
                         playCustomSong(songPath, fadeTime, playMid);
                         log::info("Re-attempting custom song playback");
                     }
@@ -217,6 +387,7 @@ public:
             {
                 // Retry built-in track
                 float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+                fmod->stopAllMusic(true);
                 fmod->playMusic("", false, fadeTime, level->m_audioTrack);
                 log::info("Re-attempting built-in track playback");
             }
@@ -243,7 +414,7 @@ public:
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
 
         // Stop the current level music forcefully
-        fmod->fadeInMusic(fadeTime, 0.0f);
+        fmod->stopAllMusic(true);
         log::info("Leaving LevelInfoLayer, level music stopped");
 
         // Fade back to menu music
