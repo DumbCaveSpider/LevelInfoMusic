@@ -334,4 +334,13 @@ public:
 
         LevelInfoLayer::onBack(sender);
     }
+
+    void onPlay(CCObject* sender) {
+        // stop the current level music
+        auto fmod = FMODAudioEngine::sharedEngine();
+        log::info("Leaving LevelInfoLayer, level music stopped");
+        fmod->stopAllMusic(true);
+
+        LevelInfoLayer::onPlay(sender);
+    }
 };
