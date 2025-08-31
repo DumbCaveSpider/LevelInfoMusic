@@ -17,6 +17,61 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     };
 
 public:
+    std::string getBuiltInAudioPath(int audioTrack)
+    {
+        auto gameDir = geode::dirs::getResourcesDir();
+
+        switch (audioTrack)
+        {
+        case 0:
+            return geode::utils::string::pathToString(gameDir / "StereoMadness.mp3");
+        case 1:
+            return geode::utils::string::pathToString(gameDir / "BackOnTrack.mp3");
+        case 2:
+            return geode::utils::string::pathToString(gameDir / "Polargeist.mp3");
+        case 3:
+            return geode::utils::string::pathToString(gameDir / "DryOut.mp3");
+        case 4:
+            return geode::utils::string::pathToString(gameDir / "BaseAfterBase.mp3");
+        case 5:
+            return geode::utils::string::pathToString(gameDir / "CantLetGo.mp3");
+        case 6:
+            return geode::utils::string::pathToString(gameDir / "Jumper.mp3");
+        case 7:
+            return geode::utils::string::pathToString(gameDir / "TimeMachine.mp3");
+        case 8:
+            return geode::utils::string::pathToString(gameDir / "Cycles.mp3");
+        case 9:
+            return geode::utils::string::pathToString(gameDir / "xStep.mp3");
+        case 10:
+            return geode::utils::string::pathToString(gameDir / "Clutterfunk.mp3");
+        case 11:
+            return geode::utils::string::pathToString(gameDir / "TheoryOfEverything.mp3");
+        case 12:
+            return geode::utils::string::pathToString(gameDir / "Electroman.mp3");
+        case 13:
+            return geode::utils::string::pathToString(gameDir / "Clubstep.mp3");
+        case 14:
+            return geode::utils::string::pathToString(gameDir / "Electrodynamix.mp3");
+        case 15:
+            return geode::utils::string::pathToString(gameDir / "HexagonForce.mp3");
+        case 16:
+            return geode::utils::string::pathToString(gameDir / "BlastProcessing.mp3");
+        case 17:
+            return geode::utils::string::pathToString(gameDir / "TheoryOfEverything2.mp3");
+        case 18:
+            return geode::utils::string::pathToString(gameDir / "GeometricalDominator.mp3");
+        case 19:
+            return geode::utils::string::pathToString(gameDir / "Deadlocked.mp3");
+        case 20:
+            return geode::utils::string::pathToString(gameDir / "Fingerdash.mp3");
+        case 21:
+            return geode::utils::string::pathToString(gameDir / "Dash.mp3");
+        default:
+            return "";
+        }
+    }
+
     // the way it breaks if u exit a level so this function exist just to fix it
     void playCustomSong(const std::string &songPath, float fadeTime, bool playMid)
     {
@@ -45,12 +100,8 @@ public:
                 auto audioEngine = FMODAudioEngine::sharedEngine();
                 auto channelGroup = audioEngine->m_backgroundMusicChannel;
                 if (channelGroup != nullptr) {
-                    // fallback length
                     unsigned int lengthMs = audioEngine->getMusicLengthMS(1);
-                    
-                    // Simple nullptr check instead of try/catch
                     if (audioEngine && audioEngine->m_backgroundMusicChannel) {
-                        // Channel exists, use the fallback length
                         log::info("Using fallback music length for positioning");
                     } else {
                         log::warn("Background music channel not available, using fallback");
@@ -147,169 +198,17 @@ public:
         }
         else
         {
-            // welcome to my wall of switch case statement :D
+            // Built-in audio track - use helper function for cleaner code
             fmod->stopAllMusic(true);
-            auto gameDir = geode::dirs::getResourcesDir();
-            switch (level->m_audioTrack)
+            std::string audioPath = getBuiltInAudioPath(level->m_audioTrack);
+            if (!audioPath.empty())
             {
-            case 0:
-            {
-                auto audioPath = gameDir / "StereoMadness.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath);
+                fmod->playMusic(audioPath, true, fadeTime, level->m_audioTrack);
             }
-            case 1:
+            else
             {
-                auto audioPath = gameDir / "BackOnTrack.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 2:
-            {
-                auto audioPath = gameDir / "Polargeist.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 3:
-            {
-                auto audioPath = gameDir / "DryOut.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 4:
-            {
-                auto audioPath = gameDir / "BaseAfterBase.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 5:
-            {
-                auto audioPath = gameDir / "CantLetGo.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 6:
-            {
-                auto audioPath = gameDir / "Jumper.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 7:
-            {
-                auto audioPath = gameDir / "TimeMachine.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 8:
-            {
-                auto audioPath = gameDir / "Cycles.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 9:
-            {
-                auto audioPath = gameDir / "xStep.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 10:
-            {
-                auto audioPath = gameDir / "Clutterfunk.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 11:
-            {
-                auto audioPath = gameDir / "TheoryOfEverything.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 12:
-            {
-                auto audioPath = gameDir / "Electroman.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 13:
-            {
-                auto audioPath = gameDir / "Clubstep.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 14:
-            {
-                auto audioPath = gameDir / "Electrodynamix.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 15:
-            {
-                auto audioPath = gameDir / "HexagonForce.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 16:
-            {
-                auto audioPath = gameDir / "BlastProcessing.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 17:
-            {
-                // @geode-ignore(unknown-resource)
-                auto audioPath = gameDir / "TheoryOfEverything2.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 18:
-            {
-                auto audioPath = gameDir / "GeometricalDominator.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 19:
-            {
-                auto audioPath = gameDir / "Deadlocked.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 20:
-            {
-                auto audioPath = gameDir / "Fingerdash.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            case 21:
-            {
-                auto audioPath = gameDir / "Dash.mp3";
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath.string());
-                fmod->playMusic(audioPath.string(), true, fadeTime, level->m_audioTrack);
-                break;
-            }
-            default:
                 log::debug("Unknown built-in track ID: {}", level->m_audioTrack);
-                break;
             }
         }
     }
@@ -385,11 +284,23 @@ public:
             }
             else if (level)
             {
-                // Retry built-in track
+                // Retry built-in track using proper path resolution
                 float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                 fmod->stopAllMusic(true);
-                fmod->playMusic("", false, fadeTime, level->m_audioTrack);
-                log::info("Re-attempting built-in track playback");
+
+                // Use helper function to get the correct path for built-in tracks
+                std::string audioPath = getBuiltInAudioPath(level->m_audioTrack);
+                if (!audioPath.empty())
+                {
+                    fmod->playMusic(audioPath, true, fadeTime, 0);
+                    log::info("Re-attempting built-in track playback: {}", audioPath);
+                }
+                else
+                {
+                    // Fallback to original method if path not found
+                    fmod->playMusic("", false, fadeTime, level->m_audioTrack);
+                    log::info("Re-attempting built-in track playback (fallback)");
+                }
             }
 
             // Schedule another check if we haven't exceeded max retries
