@@ -1,5 +1,6 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
+#include <Geode/modify/PlayLayer.hpp>
 
 using namespace geode::prelude;
 
@@ -298,7 +299,7 @@ public:
                 else
                 {
                     // Fallback to original method if path not found
-                    fmod->playMusic("", false, fadeTime, level->m_audioTrack);
+                    fmod->playMusic("", true, fadeTime, level->m_audioTrack);
                     log::info("Re-attempting built-in track playback (fallback)");
                 }
             }
@@ -335,12 +336,44 @@ public:
         LevelInfoLayer::onBack(sender);
     }
 
-    void onPlay(CCObject* sender) {
-        // stop the current level music
+    void onPlay(CCObject *sender)
+    {
+        // Stop the current level music and ensure it stays stopped
         auto fmod = FMODAudioEngine::sharedEngine();
-        log::info("Leaving LevelInfoLayer, level music stopped");
+        log::info("onPlay triggered - stopping level music");
+
+        // Stop all music forcefully multiple times to ensure it's stopped
         fmod->stopAllMusic(true);
+        fmod->stopAllMusic(false);
+
+        // Also stop any effects that might be playing
+        fmod->stopAllEffects();
+
+        log::info("Music stopped, effects stopped, and volume set to 0 for level play");
 
         LevelInfoLayer::onPlay(sender);
+    }
+};
+
+class $modify(MyPlayLayer, PlayLayer)
+{
+public:
+    bool init(GJGameLevel *level, bool useReplay, bool dontCreateObjects)
+    {
+        // Stop all music before initializing the play layer
+        auto fmod = FMODAudioEngine::sharedEngine();
+        log::info("PlayLayer init - ensuring music is stopped");
+        fmod->stopAllMusic(true);
+
+        return PlayLayer::init(level, useReplay, dontCreateObjects);
+    }
+
+    void onQuit()
+    {
+        // Restore music when quitting the level
+        auto fmod = FMODAudioEngine::sharedEngine();
+        log::info("PlayLayer quit - restoring music volume");
+
+        PlayLayer::onQuit();
     }
 };
