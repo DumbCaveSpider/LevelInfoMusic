@@ -1,7 +1,6 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
-#include <Geode/utils/VMTHookManager.hpp>
 
 using namespace geode::prelude;
 
@@ -15,6 +14,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         bool m_hasInitialized = false;
         GJGameLevel *m_currentLevel = nullptr;
         int m_retryCount = 0;
+        bool m_isActive = true;
         static constexpr int MAX_RETRIES = 5;
     };
 
@@ -40,6 +40,9 @@ public:
             // Set position to middle using a delayed approach
             Loader::get()->queueInMainThread([this, songPath]()
                                              {
+                if (!m_fields->m_isActive) {
+                    return;
+                }
                 auto audioEngine = FMODAudioEngine::sharedEngine();
                 if (auto channelGroup = audioEngine->m_backgroundMusicChannel) {
                     if (audioEngine && audioEngine->m_backgroundMusicChannel) {
@@ -74,14 +77,10 @@ public:
         // Store the level reference for later use
         m_fields->m_currentLevel = level;
         m_fields->m_hasInitialized = true;
+        m_fields->m_isActive = true;
 
         // Initialize music on first load
         initializeLevelMusic();
-
-        if (!VMTHookManager::get().addHook<&MyLevelInfoLayer::onExitTransitionDidStart>(this))
-            log::error("Failed to hook LevelInfoLayer::onExitTransitionDidStart");
-        if (!VMTHookManager::get().addHook<&MyLevelInfoLayer::onEnter>(this))
-            log::error("Failed to hook LevelInfoLayer::onEnter");
 
         return true;
     }
@@ -149,8 +148,9 @@ public:
             auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
             if (!audioPath.empty())
             {
-                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath);
-                fmod->playMusic(audioPath, true, fadeTime, level->m_audioTrack);
+                auto resourcePath = (geode::dirs::getResourcesDir() / audioPath);
+                log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, resourcePath.string());
+                fmod->playMusic(resourcePath.string(), true, fadeTime, level->m_audioTrack);
             }
             else
             {
@@ -164,6 +164,9 @@ public:
         // Check every 2 seconds for download completion
         Loader::get()->queueInMainThread([this]()
                                          {
+            if (!m_fields->m_isActive) {
+                return;
+            }
             auto level = m_fields->m_currentLevel;
             if (!level) return;
 
@@ -187,7 +190,9 @@ public:
             else
             {
                 // Keep checking until download completes
-                scheduleDownloadCheck();
+                if (m_fields->m_isActive) {
+                    scheduleDownloadCheck();
+                }
             } });
     }
 
@@ -198,11 +203,19 @@ public:
 
         // Schedule a check to ensure music is playing
         Loader::get()->queueInMainThread([this]()
-                                         { this->checkMusicAndRetry(); });
+                                         {
+            if (!m_fields->m_isActive) {
+                return;
+            }
+            this->checkMusicAndRetry(); });
     }
 
     void checkMusicAndRetry()
     {
+        if (!m_fields->m_isActive)
+        {
+            return;
+        }
         auto fmod = FMODAudioEngine::sharedEngine();
 
         // Check if music is actually playing
@@ -240,9 +253,11 @@ public:
                 // Use helper function to get the correct path for built-in tracks
                 auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
                 if (!audioPath.empty())
+
                 {
-                    fmod->playMusic(audioPath, true, fadeTime, 0);
-                    log::info("Re-attempting built-in track playback: {}", audioPath);
+                    auto resourcePath = geode::dirs::getResourcesDir() / audioPath;
+                    fmod->playMusic(resourcePath.string(), true, fadeTime, 0);
+                    log::info("Re-attempting built-in track playback: {}", resourcePath.string());
                 }
                 else
                 {
@@ -256,7 +271,11 @@ public:
             if (m_fields->m_retryCount < Fields::MAX_RETRIES)
             {
                 Loader::get()->queueInMainThread([this]()
-                                                 { this->checkMusicAndRetry(); });
+                                                 {
+                    if (!m_fields->m_isActive) {
+                        return;
+                    }
+                    this->checkMusicAndRetry(); });
             }
         }
         else
@@ -267,8 +286,10 @@ public:
 
     void onExitTransitionDidStart()
     {
+        m_fields->m_isActive = false;
 
-        if (!PlayLayer::get()) {
+        if (!PlayLayer::get())
+        {
             auto fmod = FMODAudioEngine::sharedEngine();
             auto gm = GameManager::sharedState();
 
@@ -288,15 +309,16 @@ public:
         LevelInfoLayer::onExitTransitionDidStart();
     }
 
-    void onEnter() {
-        scheduleRetryCheck();
+    void onEnter()
+    {
+        m_fields->m_isActive = true;
         LevelInfoLayer::onEnter();
+        scheduleRetryCheck();
     }
-
-
 
     void onPlay(CCObject *sender)
     {
+        m_fields->m_isActive = false;
         // Stop the current level music and ensure it stays stopped
         auto fmod = FMODAudioEngine::sharedEngine();
         log::info("onPlay triggered - stopping level music");
@@ -308,9 +330,22 @@ public:
         // Also stop any effects that might be playing
         fmod->stopAllEffects();
 
-        log::info("Music stopped, effects stopped, and volume set to 0 for level play");
+        log::info("Music stopped, effects stopped");
 
         LevelInfoLayer::onPlay(sender);
+    }
+
+    void onBack(CCObject *sender)
+    {
+        m_fields->m_isActive = false;
+        auto fmod = FMODAudioEngine::sharedEngine();
+        auto gm = GameManager::sharedState();
+        // Stop all music and effects when backing out
+        fmod->stopAllMusic(true);
+        fmod->stopAllEffects();
+        gm->playMenuMusic();
+        log::info("onBack triggered - stopping level music & play menu music");
+        LevelInfoLayer::onBack(sender);
     }
 };
 
@@ -325,14 +360,5 @@ public:
         fmod->stopAllMusic(true);
 
         return PlayLayer::init(level, useReplay, dontCreateObjects);
-    }
-
-    void onQuit()
-    {
-        // Restore music when quitting the level
-        auto fmod = FMODAudioEngine::sharedEngine();
-        log::info("PlayLayer quit - restoring music volume");
-
-        PlayLayer::onQuit();
     }
 };
