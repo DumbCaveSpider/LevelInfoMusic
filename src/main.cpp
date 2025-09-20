@@ -18,6 +18,62 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     };
 
 public:
+    std::string getBuiltInAudioPath(int audioTrack)
+    {
+        auto gameDir = geode::dirs::getResourcesDir();
+
+        switch (audioTrack)
+        {
+        case 0:
+            return geode::utils::string::pathToString(gameDir / "StereoMadness.mp3");
+        case 1:
+            return geode::utils::string::pathToString(gameDir / "BackOnTrack.mp3");
+        case 2:
+            return geode::utils::string::pathToString(gameDir / "Polargeist.mp3");
+        case 3:
+            return geode::utils::string::pathToString(gameDir / "DryOut.mp3");
+        case 4:
+            return geode::utils::string::pathToString(gameDir / "BaseAfterBase.mp3");
+        case 5:
+            return geode::utils::string::pathToString(gameDir / "CantLetGo.mp3");
+        case 6:
+            return geode::utils::string::pathToString(gameDir / "Jumper.mp3");
+        case 7:
+            return geode::utils::string::pathToString(gameDir / "TimeMachine.mp3");
+        case 8:
+            return geode::utils::string::pathToString(gameDir / "Cycles.mp3");
+        case 9:
+            return geode::utils::string::pathToString(gameDir / "xStep.mp3");
+        case 10:
+            return geode::utils::string::pathToString(gameDir / "Clutterfunk.mp3");
+        case 11:
+            return geode::utils::string::pathToString(gameDir / "TheoryOfEverything.mp3");
+        case 12:
+            return geode::utils::string::pathToString(gameDir / "Electroman.mp3");
+        case 13:
+            return geode::utils::string::pathToString(gameDir / "Clubstep.mp3");
+        case 14:
+            return geode::utils::string::pathToString(gameDir / "Electrodynamix.mp3");
+        case 15:
+            return geode::utils::string::pathToString(gameDir / "HexagonForce.mp3");
+        case 16:
+            return geode::utils::string::pathToString(gameDir / "BlastProcessing.mp3");
+        case 17:
+            // @geode-ignore(unknown-resource)
+            return geode::utils::string::pathToString(gameDir / "TheoryOfEverything2.mp3");
+        case 18:
+            return geode::utils::string::pathToString(gameDir / "GeometricalDominator.mp3");
+        case 19:
+            return geode::utils::string::pathToString(gameDir / "Deadlocked.mp3");
+        case 20:
+            return geode::utils::string::pathToString(gameDir / "Fingerdash.mp3");
+        case 21:
+            return geode::utils::string::pathToString(gameDir / "Dash.mp3");
+        default:
+            return "";
+        }
+    }
+
     // the way it breaks if u exit a level so this function exist just to fix it
     void playCustomSong(const std::string &songPath, float fadeTime, bool playMid)
     {
@@ -173,6 +229,7 @@ public:
                 auto songPath = musicManager->pathForSong(level->m_songID);
                 if (!songPath.empty())
                 {
+                    // @geode-ignore(unknown-setting)
                     float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                     bool playMid = Mod::get()->getSettingValue<bool>("playMid");
                     log::info("Download completed, playing custom song: {}", songPath);
@@ -220,6 +277,7 @@ public:
                     auto songPath = musicManager->pathForSong(level->m_songID);
                     if (!songPath.empty())
                     {
+                        // @geode-ignore(unknown-setting)
                         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
                         fmod->stopAllMusic(true);
@@ -231,6 +289,7 @@ public:
             else if (level)
             {
                 // Retry built-in track using proper path resolution
+                // @geode-ignore(unknown-setting)
                 float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                 fmod->stopAllMusic(true);
 
@@ -268,6 +327,7 @@ public:
         auto gm = GameManager::sharedState();
 
         // get the fadetime from the settings
+        // @geode-ignore(unknown-setting)
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
 
         // Stop the current level music forcefully

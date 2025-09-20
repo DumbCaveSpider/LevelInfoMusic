@@ -1,3 +1,5 @@
+# v1.0.3
+- Very minor changes
 # v1.0.2
 - Minor changes
 - Fixed **Preview Music mid-song** to work on MacOS
