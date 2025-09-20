@@ -1,6 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/utils/VMTHookManager.hpp>
 
 using namespace geode::prelude;
 
@@ -14,47 +15,40 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         bool m_hasInitialized = false;
         GJGameLevel *m_currentLevel = nullptr;
         int m_retryCount = 0;
-        static const int MAX_RETRIES = 5;
+        static constexpr int MAX_RETRIES = 5;
     };
 
 public:
-
     // the way it breaks if u exit a level so this function exist just to fix it
     void playCustomSong(const std::string &songPath, float fadeTime, bool playMid)
     {
         auto fmod = FMODAudioEngine::sharedEngine();
 
+        // stop all music
+        fmod->stopAllMusic(true);
+
+        // play music for the mid thing
+        fmod->playMusic(songPath, true, fadeTime, 1);
+
         if (!playMid)
         {
-            // stop all music
-            fmod->stopAllMusic(true);
-
-            // play music at start
-            fmod->playMusic(songPath, true, fadeTime, 1);
             log::info("Playing custom song from start: {}", songPath);
         }
         else
         {
-            // stop all music
-            fmod->stopAllMusic(true);
-
-            // play music for the mid thing
-            fmod->playMusic(songPath, true, fadeTime, 1);
 
             // Set position to middle using a delayed approach
             Loader::get()->queueInMainThread([this, songPath]()
                                              {
                 auto audioEngine = FMODAudioEngine::sharedEngine();
-                auto channelGroup = audioEngine->m_backgroundMusicChannel;
-                if (channelGroup != nullptr) {
-                    unsigned int lengthMs = audioEngine->getMusicLengthMS(1);
+                if (auto channelGroup = audioEngine->m_backgroundMusicChannel) {
                     if (audioEngine && audioEngine->m_backgroundMusicChannel) {
                         log::info("Using fallback music length for positioning");
                     } else {
                         log::warn("Background music channel not available, using fallback");
                     }
                     
-                    unsigned int middleMs = lengthMs / 2;
+                    unsigned int middleMs = audioEngine->getMusicLengthMS(1) / 2;
                     log::info("Setting music position to middle: {} ms (estimated)", middleMs);
                     
                     // Get the first channel from the channel group
@@ -83,6 +77,9 @@ public:
 
         // Initialize music on first load
         initializeLevelMusic();
+
+        if (!VMTHookManager::get().addHook<&MyLevelInfoLayer::onExitTransitionDidStart>(this))
+            log::error("Failed to hook LevelInfoLayer::onExitTransitionDidStart");
 
         return true;
     }
@@ -266,7 +263,7 @@ public:
         }
     }
 
-    void onBack(CCObject *sender)
+    void onExitTransitionDidStart()
     {
         auto fmod = FMODAudioEngine::sharedEngine();
         auto gm = GameManager::sharedState();
@@ -283,8 +280,10 @@ public:
         fmod->fadeInMusic(fadeTime, m_fields->m_originalVolume);
         gm->playMenuMusic();
 
-        LevelInfoLayer::onBack(sender);
+        LevelInfoLayer::onExitTransitionDidStart();
     }
+
+
 
     void onPlay(CCObject *sender)
     {
