@@ -1,3 +1,5 @@
+# v1.0.4
+- Refactored the inbuilt track
 # v1.0.3
 - Very minor changes
 # v1.0.2
