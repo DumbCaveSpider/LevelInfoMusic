@@ -59,6 +59,7 @@ public:
         case 16:
             return geode::utils::string::pathToString(gameDir / "BlastProcessing.mp3");
         case 17:
+            // @geode-ignore(unknown-resource)
             return geode::utils::string::pathToString(gameDir / "TheoryOfEverything2.mp3");
         case 18:
             return geode::utils::string::pathToString(gameDir / "GeometricalDominator.mp3");
@@ -228,6 +229,7 @@ public:
                 auto songPath = musicManager->pathForSong(level->m_songID);
                 if (!songPath.empty())
                 {
+                    // @geode-ignore(unknown-setting)
                     float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                     bool playMid = Mod::get()->getSettingValue<bool>("playMid");
                     log::info("Download completed, playing custom song: {}", songPath);
@@ -275,6 +277,7 @@ public:
                     auto songPath = musicManager->pathForSong(level->m_songID);
                     if (!songPath.empty())
                     {
+                        // @geode-ignore(unknown-setting)
                         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
                         fmod->stopAllMusic(true);
@@ -286,6 +289,7 @@ public:
             else if (level)
             {
                 // Retry built-in track using proper path resolution
+                // @geode-ignore(unknown-setting)
                 float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
                 fmod->stopAllMusic(true);
 
@@ -323,6 +327,7 @@ public:
         auto gm = GameManager::sharedState();
 
         // get the fadetime from the settings
+        // @geode-ignore(unknown-setting)
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
 
         // Stop the current level music forcefully
