@@ -1,6 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <filesystem>
 
 using namespace geode::prelude;
 
@@ -148,7 +149,8 @@ public:
             auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
             if (!audioPath.empty())
             {
-                auto resourcePath = (geode::dirs::getResourcesDir() / audioPath);
+                // Ensure portable composition: convert gd::string to std::filesystem::path explicitly
+                auto resourcePath = geode::dirs::getResourcesDir() / std::filesystem::path(audioPath.c_str());
                 log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, resourcePath.string());
                 fmod->playMusic(resourcePath.string(), true, fadeTime, level->m_audioTrack);
             }
@@ -255,7 +257,7 @@ public:
                 if (!audioPath.empty())
 
                 {
-                    auto resourcePath = geode::dirs::getResourcesDir() / audioPath;
+                    auto resourcePath = geode::dirs::getResourcesDir() / std::filesystem::path(audioPath.c_str());
                     fmod->playMusic(resourcePath.string(), true, fadeTime, 0);
                     log::info("Re-attempting built-in track playback: {}", resourcePath.string());
                 }
