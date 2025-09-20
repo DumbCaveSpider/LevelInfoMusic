@@ -80,6 +80,8 @@ public:
 
         if (!VMTHookManager::get().addHook<&MyLevelInfoLayer::onExitTransitionDidStart>(this))
             log::error("Failed to hook LevelInfoLayer::onExitTransitionDidStart");
+        if (!VMTHookManager::get().addHook<&MyLevelInfoLayer::onEnter>(this))
+            log::error("Failed to hook LevelInfoLayer::onEnter");
 
         return true;
     }
@@ -265,22 +267,30 @@ public:
 
     void onExitTransitionDidStart()
     {
-        auto fmod = FMODAudioEngine::sharedEngine();
-        auto gm = GameManager::sharedState();
 
-        // get the fadetime from the settings
-        // @geode-ignore(unknown-setting)
-        float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+        if (!PlayLayer::get()) {
+            auto fmod = FMODAudioEngine::sharedEngine();
+            auto gm = GameManager::sharedState();
 
-        // Stop the current level music forcefully
-        fmod->stopAllMusic(true);
-        log::info("Leaving LevelInfoLayer, level music stopped");
+            // get the fadetime from the settings
+            // @geode-ignore(unknown-setting)
+            float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
 
-        // Fade back to menu music
-        fmod->fadeInMusic(fadeTime, m_fields->m_originalVolume);
-        gm->playMenuMusic();
+            // Stop the current level music forcefully
+            fmod->stopAllMusic(true);
+            log::info("Leaving LevelInfoLayer, level music stopped");
+
+            // Fade back to menu music
+            fmod->fadeInMusic(fadeTime, m_fields->m_originalVolume);
+            gm->playMenuMusic();
+        }
 
         LevelInfoLayer::onExitTransitionDidStart();
+    }
+
+    void onEnter() {
+        scheduleRetryCheck();
+        LevelInfoLayer::onEnter();
     }
 
 
