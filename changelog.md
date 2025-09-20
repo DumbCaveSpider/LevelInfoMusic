@@ -1,3 +1,6 @@
+# v1.0.5
+- Fixed the menu music not playing when exiting the level info screen
+- Fixed the issues with the inbuilt track not playing
 # v1.0.4
 - Refactored the inbuilt track
 # v1.0.3
