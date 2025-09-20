@@ -18,61 +18,6 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     };
 
 public:
-    std::string getBuiltInAudioPath(int audioTrack)
-    {
-        auto gameDir = geode::dirs::getResourcesDir();
-
-        switch (audioTrack)
-        {
-        case 0:
-            return geode::utils::string::pathToString(gameDir / "StereoMadness.mp3");
-        case 1:
-            return geode::utils::string::pathToString(gameDir / "BackOnTrack.mp3");
-        case 2:
-            return geode::utils::string::pathToString(gameDir / "Polargeist.mp3");
-        case 3:
-            return geode::utils::string::pathToString(gameDir / "DryOut.mp3");
-        case 4:
-            return geode::utils::string::pathToString(gameDir / "BaseAfterBase.mp3");
-        case 5:
-            return geode::utils::string::pathToString(gameDir / "CantLetGo.mp3");
-        case 6:
-            return geode::utils::string::pathToString(gameDir / "Jumper.mp3");
-        case 7:
-            return geode::utils::string::pathToString(gameDir / "TimeMachine.mp3");
-        case 8:
-            return geode::utils::string::pathToString(gameDir / "Cycles.mp3");
-        case 9:
-            return geode::utils::string::pathToString(gameDir / "xStep.mp3");
-        case 10:
-            return geode::utils::string::pathToString(gameDir / "Clutterfunk.mp3");
-        case 11:
-            return geode::utils::string::pathToString(gameDir / "TheoryOfEverything.mp3");
-        case 12:
-            return geode::utils::string::pathToString(gameDir / "Electroman.mp3");
-        case 13:
-            return geode::utils::string::pathToString(gameDir / "Clubstep.mp3");
-        case 14:
-            return geode::utils::string::pathToString(gameDir / "Electrodynamix.mp3");
-        case 15:
-            return geode::utils::string::pathToString(gameDir / "HexagonForce.mp3");
-        case 16:
-            return geode::utils::string::pathToString(gameDir / "BlastProcessing.mp3");
-        case 17:
-            return geode::utils::string::pathToString(gameDir / "TheoryOfEverything2.mp3");
-        case 18:
-            return geode::utils::string::pathToString(gameDir / "GeometricalDominator.mp3");
-        case 19:
-            return geode::utils::string::pathToString(gameDir / "Deadlocked.mp3");
-        case 20:
-            return geode::utils::string::pathToString(gameDir / "Fingerdash.mp3");
-        case 21:
-            return geode::utils::string::pathToString(gameDir / "Dash.mp3");
-        default:
-            return "";
-        }
-    }
-
     // the way it breaks if u exit a level so this function exist just to fix it
     void playCustomSong(const std::string &songPath, float fadeTime, bool playMid)
     {
@@ -201,7 +146,7 @@ public:
         {
             // Built-in audio track - use helper function for cleaner code
             fmod->stopAllMusic(true);
-            std::string audioPath = getBuiltInAudioPath(level->m_audioTrack);
+            auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
             if (!audioPath.empty())
             {
                 log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, audioPath);
@@ -260,7 +205,7 @@ public:
         auto fmod = FMODAudioEngine::sharedEngine();
 
         // Check if music is actually playing
-        if (m_fields->m_retryCount < m_fields->MAX_RETRIES)
+        if (m_fields->m_retryCount < Fields::MAX_RETRIES)
         {
             m_fields->m_retryCount++;
             log::warn("retry {}: Music not playing, attempting to force play again", m_fields->m_retryCount);
@@ -290,7 +235,7 @@ public:
                 fmod->stopAllMusic(true);
 
                 // Use helper function to get the correct path for built-in tracks
-                std::string audioPath = getBuiltInAudioPath(level->m_audioTrack);
+                auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
                 if (!audioPath.empty())
                 {
                     fmod->playMusic(audioPath, true, fadeTime, 0);
@@ -305,7 +250,7 @@ public:
             }
 
             // Schedule another check if we haven't exceeded max retries
-            if (m_fields->m_retryCount < m_fields->MAX_RETRIES)
+            if (m_fields->m_retryCount < Fields::MAX_RETRIES)
             {
                 Loader::get()->queueInMainThread([this]()
                                                  { this->checkMusicAndRetry(); });
@@ -313,7 +258,7 @@ public:
         }
         else
         {
-            log::error("Failed to play music after {} retries", m_fields->MAX_RETRIES);
+            log::error("Failed to play music after {} retries", Fields::MAX_RETRIES);
         }
     }
 
