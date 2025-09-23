@@ -187,7 +187,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
             if (!audioPath.empty())
             {
-                auto resourcePath = (geode::dirs::getResourcesDir() / audioPath);
+                auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
                 log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, resourcePath.string());
                 fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, level->m_audioTrack);
                 m_fields->m_isActive = true;
@@ -206,7 +206,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
                             auto musicManager = MusicDownloadManager::sharedState();
                             auto fmod = FMODAudioEngine::sharedEngine();
                             float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
-                            auto resourcePath = (geode::dirs::getResourcesDir() / audioPath);
+                            auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
                             auto result = channelGroup->getChannel(0, &channel);
                             if (result == FMOD_OK && channel) {
                                 auto setResult = channel->setPosition(middleMs, 1);
