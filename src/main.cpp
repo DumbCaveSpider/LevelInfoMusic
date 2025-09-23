@@ -16,6 +16,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         bool m_hasInitialized = false;
         GJGameLevel *m_currentLevel = nullptr;
         bool m_isActive = false;
+        bool m_isChecking = false;
     };
     // handles the download callback forwarding i think?
     struct SongDownloadForwarder : MusicDownloadDelegate
@@ -63,6 +64,50 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         log::info("Playing custom song from middle");
     }
 
+    // polling loop to detect when the custom song has finished downloading
+    void startCheckMusicAndRetry()
+    {
+        if (m_fields->m_isChecking)
+            return;
+        m_fields->m_isChecking = true;
+        this->schedule(schedule_selector(MyLevelInfoLayer::checkMusicAndRetry), 0.1f);
+        log::debug("Started checkMusicAndRetry polling");
+    }
+
+    void stopCheckMusicAndRetry()
+    {
+        if (!m_fields->m_isChecking)
+            return;
+        this->unschedule(schedule_selector(MyLevelInfoLayer::checkMusicAndRetry));
+        m_fields->m_isChecking = false;
+        log::debug("Stopped checkMusicAndRetry polling");
+    }
+
+    void checkMusicAndRetry(float)
+    {
+        auto level = m_fields->m_currentLevel;
+        if (!level)
+            return;
+
+        // already started playing something for this layer, stop polling
+        if (m_fields->m_isActive)
+        {
+            stopCheckMusicAndRetry();
+            return;
+        }
+
+        if (level->m_songID != 0)
+        {
+            auto musicManager = MusicDownloadManager::sharedState();
+            if (musicManager->isSongDownloaded(level->m_songID))
+            {
+                log::info("Polling detected custom song downloaded (ID: {}), playing now", level->m_songID);
+                stopCheckMusicAndRetry();
+                initializeLevelMusic();
+            }
+        }
+    }
+
     bool init(GJGameLevel *level, bool challenge)
     {
         if (!LevelInfoLayer::init(level, challenge))
@@ -103,6 +148,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         if (level->m_songID != 0 && !musicManager->isSongDownloaded(level->m_songID))
         {
             log::info("Custom song not downloaded yet, will not stop menu music");
+            startCheckMusicAndRetry();
             return true;
         }
 
@@ -188,6 +234,13 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         if (songID != m_fields->m_currentLevelSongID)
             return;
 
+        // Stop polling once we know the song is available
+        stopCheckMusicAndRetry();
+
+        // If music is already active (e.g., from a previous trigger), avoid double-playing
+        if (m_fields->m_isActive)
+            return;
+
         auto musicManager = MusicDownloadManager::sharedState();
         auto songPath = musicManager->pathForSong(songID);
         if (songPath.empty())
@@ -206,6 +259,9 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     void onExitTransitionDidStart()
     {
         m_fields->m_isActive = false;
+
+        // stop polling on exit
+        stopCheckMusicAndRetry();
 
         // Remove delegate to avoid late callbacks after the layer is leaving
         if (m_fields->m_musicDelegate)
@@ -309,6 +365,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     {
         if (!m_fields->m_isActive)
         {
+            stopCheckMusicAndRetry();
             if (m_fields->m_musicDelegate)
             {
                 MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
@@ -320,6 +377,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         }
 
         m_fields->m_isActive = false;
+        stopCheckMusicAndRetry();
 
         if (m_fields->m_musicDelegate)
         {
@@ -340,6 +398,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     {
         if (!m_fields->m_isActive)
         {
+            stopCheckMusicAndRetry();
             LevelInfoLayer::onBack(sender);
             return;
         }
@@ -351,6 +410,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         fmod->stopAllEffects();
         gm->playMenuMusic();
         log::info("onBack triggered - stopping level music & play menu music");
+        stopCheckMusicAndRetry();
         // remove delegate
         if (m_fields->m_musicDelegate)
         {
