@@ -141,15 +141,15 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
             if (!audioPath.empty())
             {
-                auto resourcePath = geode::dirs::getResourcesDir() / std::filesystem::path(audioPath.c_str());
+                auto resourcePath = (geode::dirs::getResourcesDir() / audioPath);
                 log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, resourcePath.string());
-                fmod->playMusic(resourcePath.string(), true, fadeTime, level->m_audioTrack);
+                fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, level->m_audioTrack);
                 m_fields->m_isActive = true;
 
                 if (playMid)
                 {
                     int trackId = level->m_audioTrack;
-                    Loader::get()->queueInMainThread([this, trackId]()
+                    Loader::get()->queueInMainThread([this, trackId, audioPath]()
                                                      {
                         if (!m_fields->m_isActive) return;
                         auto audioEngine = FMODAudioEngine::sharedEngine();
@@ -160,11 +160,11 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
                             auto musicManager = MusicDownloadManager::sharedState();
                             auto fmod = FMODAudioEngine::sharedEngine();
                             float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
-                            auto songPath = musicManager->pathForSong(level->m_songID);
+                            auto resourcePath = (geode::dirs::getResourcesDir() / audioPath);
                             auto result = channelGroup->getChannel(0, &channel);
                             if (result == FMOD_OK && channel) {
-                                fmod->playMusic(songPath, true, fadeTime, 1);
                                 auto setResult = channel->setPosition(middleMs, 1);
+                                fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, 1);
                                 log::info("(Built-in) Channel position set result: {}", (int)setResult);
                             } else {
                                 log::warn("(Built-in) Failed to get channel from group, result: {}", (int)result);
