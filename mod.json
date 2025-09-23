@@ -8,7 +8,7 @@
 	},
 	"id": "arcticwoof.level_info_music",
 	"name": "Level Info Music",
-	"version": "v1.0.5",
+	"version": "v1.0.6",
 	"developer": "ArcticWoof",
 	"description": "Plays a preview of the music in level info.",
 	"tags": [

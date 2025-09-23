@@ -1,5 +1,5 @@
 # Level Info Music
-Automatically plays a preview of the music level while you are in the level info screen.
+Automatically plays a preview of the custom level music when viewing level info screen.
 
 <cy>You can change the fade time and other settings in the mod settings.</c>
 
