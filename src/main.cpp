@@ -2,11 +2,31 @@
 #include <Geode/modify/LevelInfoLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <filesystem>
+#include <unordered_set>
+#include <mutex>
 
 using namespace geode::prelude;
 
 class $modify(MyLevelInfoLayer, LevelInfoLayer)
 {
+    inline static std::unordered_set<MyLevelInfoLayer *> s_liveInstances;
+    inline static std::mutex s_liveMutex;
+    static void registerLive(MyLevelInfoLayer *ptr)
+    {
+        std::scoped_lock _{s_liveMutex};
+        s_liveInstances.insert(ptr);
+    }
+    static void unregisterLive(MyLevelInfoLayer *ptr)
+    {
+        std::scoped_lock _{s_liveMutex};
+        s_liveInstances.erase(ptr);
+    }
+    static bool isLive(MyLevelInfoLayer *ptr)
+    {
+        std::scoped_lock _{s_liveMutex};
+        return s_liveInstances.find(ptr) != s_liveInstances.end();
+    }
+
     struct Fields
     {
         float m_originalVolume = 0.0f;
@@ -25,7 +45,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         explicit SongDownloadForwarder(MyLevelInfoLayer *o) : owner(o) {}
         void downloadSongFinished(int songID) override
         {
-            if (owner)
+            if (owner && MyLevelInfoLayer::isLive(owner))
                 owner->onSongDownloaded(songID);
         }
     };
@@ -44,9 +64,11 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         }
 
         // Set position to middle using a delayed approach
-        Loader::get()->queueInMainThread([this, fadeTime, songPath]()
+        MyLevelInfoLayer *self = this;
+        Loader::get()->queueInMainThread([self, fadeTime, songPath]()
                                          {
-            if (!m_fields->m_isActive) return;
+            if (!MyLevelInfoLayer::isLive(self)) return;
+            if (!self->m_fields->m_isActive) return;
             auto audioEngine = FMODAudioEngine::sharedEngine();
             if (auto channelGroup = audioEngine->m_backgroundMusicChannel) {
                 unsigned int middleMs = audioEngine->getMusicLengthMS(1) / 2;
@@ -113,7 +135,10 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         if (!LevelInfoLayer::init(level, challenge))
             return false;
 
+        registerLive(this);
+
         m_fields->m_currentLevel = level;
+        m_fields->m_currentLevelSongID = level ? level->m_songID : 0;
         m_fields->m_hasInitialized = true;
 
         log::debug("levelinfo says hi! level song ID: {}", level->m_songID);
@@ -195,14 +220,16 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
                 if (playMid)
                 {
                     int trackId = level->m_audioTrack;
-                    Loader::get()->queueInMainThread([this, trackId, audioPath]()
+                    MyLevelInfoLayer *self = this;
+                    Loader::get()->queueInMainThread([self, trackId, audioPath]()
                                                      {
-                        if (!m_fields->m_isActive) return;
+                        if (!MyLevelInfoLayer::isLive(self)) return;
+                        if (!self->m_fields->m_isActive) return;
                         auto audioEngine = FMODAudioEngine::sharedEngine();
                         if (auto channelGroup = audioEngine->m_backgroundMusicChannel) {
                             unsigned int middleMs = audioEngine->getMusicLengthMS(trackId) / 2;
                             FMOD::Channel* channel = nullptr;
-                            auto level = m_fields->m_currentLevel;
+                            auto level = self->m_fields->m_currentLevel;
                             auto musicManager = MusicDownloadManager::sharedState();
                             auto fmod = FMODAudioEngine::sharedEngine();
                             float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
@@ -258,6 +285,9 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
 
     void onExitTransitionDidStart()
     {
+        // layer is dead, unregister, killed, L taken
+        unregisterLive(this);
+
         m_fields->m_isActive = false;
 
         // stop polling on exit
@@ -324,11 +354,13 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
                     fmod->stopAllMusic(false); // stop all music first
 
                     // re-assert custom music after a short delay
-                    Loader::get()->queueInMainThread([this, songPath, playMid]()
+                    MyLevelInfoLayer *self = this;
+                    Loader::get()->queueInMainThread([self, songPath, playMid]()
                                                      {
+                        if (!MyLevelInfoLayer::isLive(self)) return;
                         auto fmod = FMODAudioEngine::sharedEngine();
                         fmod->playMusic(songPath, true, 0.0f, 1);
-                        m_fields->m_isActive = true;
+                        self->m_fields->m_isActive = true;
                         if (playMid && fmod->m_backgroundMusicChannel)
                         {
                             FMOD::Channel* hijackChannel = nullptr;
@@ -399,6 +431,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         if (!m_fields->m_isActive)
         {
             stopCheckMusicAndRetry();
+            unregisterLive(this);
             LevelInfoLayer::onBack(sender);
             return;
         }
@@ -435,6 +468,19 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             m_fields->m_bgMusicTime = 0;
         }
         LevelInfoLayer::onBack(sender);
+    }
+    
+    ~MyLevelInfoLayer()
+    {
+        // commit deconstruction myself
+        stopCheckMusicAndRetry();
+        unregisterLive(this);
+        if (m_fields->m_musicDelegate)
+        {
+            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
+            delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            m_fields->m_musicDelegate = nullptr;
+        }
     }
 };
 

@@ -1,3 +1,7 @@
+# v1.0.7
+
+- Fixed crash when music finished downloading
+
 # v1.0.6
 
 - Fixed the inbuilt track not playing mid-song
