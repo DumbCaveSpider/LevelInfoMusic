@@ -37,6 +37,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         GJGameLevel *m_currentLevel = nullptr;
         bool m_isActive = false;
         bool m_isChecking = false;
+        bool m_savedMusicPosition = false;
     };
     // handles the download callback forwarding i think?
     struct SongDownloadForwarder : MusicDownloadDelegate
@@ -306,93 +307,19 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             m_fields->m_musicDelegate = nullptr;
         }
 
-        // no play layer?
+        // no play layer? means we're exiting back to menu, not entering PlayLayer
         if (!PlayLayer::get())
         {
             auto fmod = FMODAudioEngine::sharedEngine();
             auto gm = GameManager::sharedState();
-            float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
-            bool playMid = Mod::get()->getSettingValue<bool>("playMid");
-
+            
             // Stop any music currently playing
             fmod->stopAllMusic(true);
             log::info("Leaving LevelInfoLayer, level music stopped");
 
-            // Check for custom music
-            auto level = m_fields->m_currentLevel;
-            if (level && level->m_songID != 0)
-            {
-                auto musicManager = MusicDownloadManager::sharedState();
-                if (musicManager->isSongDownloaded(level->m_songID))
-                {
-                    // no music loop randomizer, i will hijack the fmod channel back >:)
-                    auto songPath = musicManager->pathForSong(level->m_songID);
-                    FMOD::Channel *hijackChannel = nullptr;
-                    float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
-                    fmod->playMusic(songPath, true, fadeTime, 1); // Play instantly, no fade
-                    if (fmod->m_backgroundMusicChannel)
-                    {
-                        auto result = fmod->m_backgroundMusicChannel->getChannel(0, &hijackChannel);
-                        if (result == FMOD_OK && hijackChannel)
-                        {
-                            // set position to middle if playMid is true
-                            if (playMid)
-                            {
-                                unsigned int middleMs = fmod->getMusicLengthMS(1) / 2;
-                                hijackChannel->setPosition(middleMs, 1);
-                                log::info("Hijacked FMOD channel, set position to middle: {} ms", middleMs);
-                            }
-                            else
-                            {
-                                hijackChannel->setPosition(0, 1);
-                                log::info("Hijacked FMOD channel, set position to start");
-                            }
-                        }
-                        else
-                        {
-                            log::warn("Could not hijack FMOD channel, result: {}", (int)result);
-                        }
-                    }
-                    log::info("Forcefully playing custom music on LevelInfoLayer after exit");
-
-                    // Force-stop menu music in case another mod (ehm ehm Menu Loop Randomizer) triggers it
-                    fmod->stopAllMusic(false); // stop all music first
-
-                    // re-assert custom music after a short delay
-                    MyLevelInfoLayer *self = this;
-                    Loader::get()->queueInMainThread([self, songPath, playMid]()
-                                                     {
-                        if (!MyLevelInfoLayer::isLive(self)) return;
-                        auto fmod = FMODAudioEngine::sharedEngine();
-                        fmod->playMusic(songPath, true, 0.0f, 1);
-                        self->m_fields->m_isActive = true;
-                        if (playMid && fmod->m_backgroundMusicChannel)
-                        {
-                            FMOD::Channel* hijackChannel = nullptr;
-                            auto result = fmod->m_backgroundMusicChannel->getChannel(0, &hijackChannel);
-                            if (result == FMOD_OK && hijackChannel)
-                            {
-                                unsigned int middleMs = fmod->getMusicLengthMS(1) / 2;
-                                hijackChannel->setPosition(middleMs, 1);
-                                log::info("(Delayed) Re-hijacked FMOD channel, set position to middle: {} ms", middleMs);
-                            }
-                        } });
-                }
-                else
-                {
-                    // Play menu music if custom music is not downloaded
-                    log::info("Custom song not downloaded, play menu music after exit");
-                    gm->playMenuMusic();
-                    m_fields->m_isActive = false;
-                }
-            }
-            else
-            {
-                // Play menu music if no custom song for this level
-                log::info("No custom song for this level, play menu music after exit");
-                gm->playMenuMusic();
-                m_fields->m_isActive = false;
-            }
+            // Always play menu music when exiting to the menu
+            log::info("Exiting to menu, playing menu music");
+            gm->playMenuMusic();
         }
 
         LevelInfoLayer::onExitTransitionDidStart();
@@ -413,6 +340,22 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             return;
         }
 
+        // Save current music position before entering PlayLayer
+        auto fmod = FMODAudioEngine::sharedEngine();
+        if (fmod && fmod->m_backgroundMusicChannel)
+        {
+            FMOD::Channel *channel = nullptr;
+            auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
+            if (result == FMOD_OK && channel)
+            {
+                unsigned int posMs = 0;
+                channel->getPosition(&posMs, (FMOD_TIMEUNIT)1);
+                Mod::get()->setSavedValue("levelMusicPosition", static_cast<int>(posMs));
+                m_fields->m_savedMusicPosition = true;
+                log::info("Saved level music position: {} ms before entering PlayLayer", posMs);
+            }
+        }
+
         m_fields->m_isActive = false;
         stopCheckMusicAndRetry();
 
@@ -422,7 +365,6 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
             m_fields->m_musicDelegate = nullptr;
         }
-        auto fmod = FMODAudioEngine::sharedEngine();
         log::info("onPlay triggered - stopping level music");
         fmod->stopAllMusic(true);
         fmod->stopAllMusic(false);
@@ -500,5 +442,41 @@ class $modify(MyPlayLayer, PlayLayer)
         fmod->stopAllMusic(true);
 
         return PlayLayer::init(level, useReplay, dontCreateObjects);
+    }
+
+    void onQuit()
+    {
+        // When quitting PlayLayer and returning to LevelInfoLayer, restore music position
+        PlayLayer::onQuit();
+
+        // Check if we saved a music position
+        if (Mod::get()->hasSavedValue("levelMusicPosition"))
+        {
+            int savedPos = Mod::get()->getSavedValue<int>("levelMusicPosition");
+            log::info("Exiting PlayLayer, will restore level music at position: {} ms", savedPos);
+
+            // Queue restoration for after the layer transition
+            Loader::get()->queueInMainThread([savedPos]()
+                                             {
+                auto fmod = FMODAudioEngine::sharedEngine();
+                if (fmod && fmod->m_backgroundMusicChannel)
+                {
+                    FMOD::Channel* channel = nullptr;
+                    auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
+                    if (result == FMOD_OK && channel)
+                    {
+                        channel->setPosition(static_cast<unsigned int>(savedPos), (FMOD_TIMEUNIT)1);
+                        log::info("Restored level music position to: {} ms", savedPos);
+                    }
+                    else
+                    {
+                        log::warn("Failed to restore music position, result: {}", (int)result);
+                    }
+                }
+                
+                // Clear the saved value after using it
+                Mod::get()->setSavedValue<int>("levelMusicPosition", 0);
+                log::debug("Cleared saved music position"); });
+        }
     }
 };

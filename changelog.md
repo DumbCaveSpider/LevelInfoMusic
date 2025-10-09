@@ -1,3 +1,8 @@
+# v1.0.8
+
+- Fixed issue with both custom music and main menu music playing simultaneously when exiting level
+- Fixed issue with custom music plays at the very start of the level when exiting level
+
 # v1.0.7
 
 - Fixed crash when music finished downloading
