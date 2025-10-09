@@ -9,8 +9,6 @@ using namespace geode::prelude;
 
 class $modify(MyLevelInfoLayer, LevelInfoLayer)
 {
-    // Track the last active instance for PlayLayer to access
-    inline static MyLevelInfoLayer* s_lastActive = nullptr;
     inline static std::unordered_set<MyLevelInfoLayer *> s_liveInstances;
     inline static std::mutex s_liveMutex;
     static void registerLive(MyLevelInfoLayer *ptr)
@@ -28,8 +26,6 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         std::scoped_lock _{s_liveMutex};
         return s_liveInstances.find(ptr) != s_liveInstances.end();
     }
-    // static wrapper declaration (defined after the class)
-    static void initializeLevelMusicStatic();
 
     struct Fields
     {
@@ -145,9 +141,6 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         m_fields->m_currentLevelSongID = level ? level->m_songID : 0;
         m_fields->m_hasInitialized = true;
 
-        // last acitve instance
-        s_lastActive = this;
-
         log::debug("levelinfo says hi! level song ID: {}", level->m_songID);
 
         // Save the background music position
@@ -228,27 +221,28 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
                 {
                     int trackId = level->m_audioTrack;
                     MyLevelInfoLayer *self = this;
-                    auto resourcePathCopy = resourcePath;
-                    Loader::get()->queueInMainThread([self, trackId, resourcePathCopy]()
-                    {
+                    Loader::get()->queueInMainThread([self, trackId, audioPath]()
+                                                     {
                         if (!MyLevelInfoLayer::isLive(self)) return;
                         if (!self->m_fields->m_isActive) return;
                         auto audioEngine = FMODAudioEngine::sharedEngine();
                         if (auto channelGroup = audioEngine->m_backgroundMusicChannel) {
                             unsigned int middleMs = audioEngine->getMusicLengthMS(trackId) / 2;
                             FMOD::Channel* channel = nullptr;
+                            auto level = self->m_fields->m_currentLevel;
+                            auto musicManager = MusicDownloadManager::sharedState();
                             auto fmod = FMODAudioEngine::sharedEngine();
                             float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+                            auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
                             auto result = channelGroup->getChannel(0, &channel);
                             if (result == FMOD_OK && channel) {
                                 auto setResult = channel->setPosition(middleMs, 1);
-                                fmod->playMusic(gd::string(resourcePathCopy.string()), true, fadeTime, 1);
+                                fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, 1);
                                 log::info("(Built-in) Channel position set result: {}", (int)setResult);
                             } else {
                                 log::warn("(Built-in) Failed to get channel from group, result: {}", (int)result);
                             }
-                        }
-                    });
+                        } });
                     log::info("Playing built-in track from middle");
                 }
             }
@@ -502,19 +496,4 @@ class $modify(MyPlayLayer, PlayLayer)
 
         return PlayLayer::init(level, useReplay, dontCreateObjects);
     }
-
-    void onExit() {
-        // stop the bg music regardless
-        auto fmod = FMODAudioEngine::sharedEngine();
-        log::info("PlayLayer onExit - stopping music");
-        PlayLayer::onExit();
-        fmod->stopAllMusic(true);
-        MyLevelInfoLayer::initializeLevelMusicStatic();
-    }
 };
-
-// Define the static wrapper outside the class
-void MyLevelInfoLayer::initializeLevelMusicStatic() {
-    if (s_lastActive && isLive(s_lastActive))
-        s_lastActive->initializeLevelMusic();
-}
