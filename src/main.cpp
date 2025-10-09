@@ -168,19 +168,19 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             MusicDownloadManager::sharedState()->addMusicDownloadDelegate(forwarder);
         }
 
-        // stop music when LevelInfoLayer
-        auto fmod = FMODAudioEngine::sharedEngine();
-        fmod->stopAllMusic(true);
-        log::info("Stopped menu music on LevelInfoLayer init");
-
-        // check if the custom music is not downloaded, start polling
+        // check if the custom music is not downloaded, start polling (but don't stop menu music)
         auto musicManager = MusicDownloadManager::sharedState();
         if (level->m_songID != 0 && !musicManager->isSongDownloaded(level->m_songID))
         {
-            log::info("Custom song not downloaded yet, starting polling");
+            log::info("Custom song not downloaded yet, keeping menu music and starting polling");
             startCheckMusicAndRetry();
             return true;
         }
+
+        // Stop menu music only when we're ready to play level music
+        auto fmod = FMODAudioEngine::sharedEngine();
+        fmod->stopAllMusic(true);
+        log::info("Stopped menu music on LevelInfoLayer init");
 
         initializeLevelMusic();
         return true;
