@@ -144,6 +144,22 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
 
         log::debug("levelinfo says hi! level song ID: {}", level->m_songID);
 
+        // Check if we're returning from PlayLayer (music position was saved)
+        bool returningFromPlayLayer = Mod::get()->hasSavedValue("levelMusicPosition");
+        if (returningFromPlayLayer)
+        {
+            log::info("Returning from PlayLayer, music will be handled by PlayLayer::onQuit");
+            // Register delegate forwarder once
+            if (!m_fields->m_musicDelegate)
+            {
+                auto forwarder = new SongDownloadForwarder(this);
+                m_fields->m_musicDelegate = forwarder;
+                MusicDownloadManager::sharedState()->addMusicDownloadDelegate(forwarder);
+            }
+            m_fields->m_isActive = true; // Mark as active so music restoration works
+            return true;
+        }
+
         // Save the background music position
         {
             auto audioEngine = FMODAudioEngine::sharedEngine();
@@ -446,7 +462,8 @@ class $modify(MyPlayLayer, PlayLayer)
 
     void onQuit()
     {
-        // When quitting PlayLayer and returning to LevelInfoLayer, restore music position
+        // Save level reference
+        auto level = this->m_level;
         PlayLayer::onQuit();
 
         // Check if we saved a music position
@@ -455,22 +472,67 @@ class $modify(MyPlayLayer, PlayLayer)
             int savedPos = Mod::get()->getSavedValue<int>("levelMusicPosition");
             log::info("Exiting PlayLayer, will restore level music at position: {} ms", savedPos);
 
-            // Queue restoration for after the layer transition
-            Loader::get()->queueInMainThread([savedPos]()
+            //  restoration for after the layer transition
+            Loader::get()->queueInMainThread([savedPos, level]()
                                              {
                 auto fmod = FMODAudioEngine::sharedEngine();
-                if (fmod && fmod->m_backgroundMusicChannel)
+                auto musicManager = MusicDownloadManager::sharedState();
+                float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+                
+                // Stop menu music that might have started
+                fmod->stopAllMusic(true);
+                log::info("Stopped menu music on PlayLayer exit");
+                
+                // Check if level has custom music
+                if (level && level->m_songID != 0 && musicManager->isSongDownloaded(level->m_songID))
                 {
-                    FMOD::Channel* channel = nullptr;
-                    auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
-                    if (result == FMOD_OK && channel)
+                    auto songPath = musicManager->pathForSong(level->m_songID);
+                    log::info("Playing custom music on return to LevelInfoLayer: {}", songPath);
+                    fmod->playMusic(songPath, true, fadeTime, 1);
+                    
+                    // small delay to ensure channel is ready
+                    Loader::get()->queueInMainThread([savedPos, songPath, fadeTime]()
+                                                     {
+                        auto fmod = FMODAudioEngine::sharedEngine();
+                        if (fmod && fmod->m_backgroundMusicChannel)
+                        {
+                            FMOD::Channel* channel = nullptr;
+                            auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
+                            if (result == FMOD_OK && channel)
+                            {
+                                channel->setPosition(static_cast<unsigned int>(savedPos), (FMOD_TIMEUNIT)1);
+                                log::info("Restored custom music position to: {} ms", savedPos);
+                            }
+                            else
+                            {
+                                log::warn("Failed to restore music position, result: {}", (int)result);
+                            }
+                        } });
+                }
+                else if (level && level->m_audioTrack != 0)
+                {
+                    // Built-in audio track
+                    auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
+                    if (!audioPath.empty())
                     {
-                        channel->setPosition(static_cast<unsigned int>(savedPos), (FMOD_TIMEUNIT)1);
-                        log::info("Restored level music position to: {} ms", savedPos);
-                    }
-                    else
-                    {
-                        log::warn("Failed to restore music position, result: {}", (int)result);
+                        auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
+                        log::info("Playing built-in audio track on return to LevelInfoLayer: {}", level->m_audioTrack);
+                        fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, level->m_audioTrack);
+                        
+                        // Set position after a small delay
+                        Loader::get()->queueInMainThread([savedPos, level]()
+                                                         {
+                            auto fmod = FMODAudioEngine::sharedEngine();
+                            if (fmod && fmod->m_backgroundMusicChannel)
+                            {
+                                FMOD::Channel* channel = nullptr;
+                                auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
+                                if (result == FMOD_OK && channel)
+                                {
+                                    channel->setPosition(static_cast<unsigned int>(savedPos), (FMOD_TIMEUNIT)1);
+                                    log::info("Restored built-in music position to: {} ms", savedPos);
+                                }
+                            } });
                     }
                 }
                 
