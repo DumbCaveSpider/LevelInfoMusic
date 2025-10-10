@@ -50,42 +50,41 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         }
     };
 
-    void playCustomSong(const std::string &songPath, float fadeTime, bool playMid)
+    void playSongWithOptionalMid(const std::string &path, int lengthIdOrOne, float fadeTime, bool playMid, const char *kind)
     {
         auto fmod = FMODAudioEngine::sharedEngine();
         fmod->stopAllMusic(true);
-        fmod->playMusic(songPath, true, fadeTime, 1);
+        fmod->playMusic(path, true, fadeTime, 1);
         m_fields->m_isActive = true;
 
         if (!playMid)
         {
-            log::info("Playing custom song from start: {}", songPath);
-            Mod::get()->setSavedValue("levelMusicPosition", 0);
+            log::info("Playing {} song from start: {}", kind, path);
             return;
         }
 
         // Set position to middle using a delayed approach
         MyLevelInfoLayer *self = this;
-        Loader::get()->queueInMainThread([self, fadeTime, songPath]()
+        Loader::get()->queueInMainThread([self, fadeTime, path, lengthIdOrOne, kind]()
                                          {
             if (!MyLevelInfoLayer::isLive(self)) return;
             if (!self->m_fields->m_isActive) return;
             auto audioEngine = FMODAudioEngine::sharedEngine();
             if (auto channelGroup = audioEngine->m_backgroundMusicChannel) {
-                unsigned int middleMs = audioEngine->getMusicLengthMS(1) / 2;
+                unsigned int middleMs = audioEngine->getMusicLengthMS(lengthIdOrOne) / 2;
                 FMOD::Channel* channel = nullptr;
                 auto fmod = FMODAudioEngine::sharedEngine();
                 auto result = channelGroup->getChannel(0, &channel);
                 if (result == FMOD_OK && channel) {
                     auto setResult = channel->setPosition(middleMs, 1);
-                    fmod->playMusic(songPath, true, fadeTime, 1);
+                    fmod->playMusic(path, true, fadeTime, 1);
                     Mod::get()->setSavedValue("levelMusicPosition", static_cast<int>(middleMs));
-                    log::info("(Custom) Channel position set result: {}, saved middle position: {} ms", (int)setResult, middleMs);
+                    log::info("({}) Channel position set result: {}, applied & saved middle position: {} ms", kind, (int)setResult, middleMs);
                 } else {
-                    log::warn("(Custom) Failed to get channel from group, result: {}", (int)result);
+                    log::warn("({}) Failed to get channel from group, result: {}", kind, (int)result);
                 }
             } });
-        log::info("Playing custom song from middle");
+        log::info("Playing {} song from middle", kind);
     }
 
     // polling loop to detect when the custom song has finished downloading
@@ -210,7 +209,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             log::info("LevelInfoLayer: custom song requested (ID: {})", level->m_songID);
             auto songPath = musicManager->pathForSong(level->m_songID);
             fmod->stopAllMusic(true);
-            playCustomSong(songPath, fadeTime, playMid);
+            playSongWithOptionalMid(songPath, 1, fadeTime, playMid, "Custom");
         }
         else
         {
@@ -221,43 +220,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             {
                 auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
                 log::info("Level uses built-in audio track: {}, from path: {}", level->m_audioTrack, resourcePath.string());
-                fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, level->m_audioTrack);
-                m_fields->m_isActive = true;
-
-                if (playMid)
-                {
-                    int trackId = level->m_audioTrack;
-                    MyLevelInfoLayer *self = this;
-                    Loader::get()->queueInMainThread([self, trackId, audioPath]()
-                                                     {
-                        if (!MyLevelInfoLayer::isLive(self)) return;
-                        if (!self->m_fields->m_isActive) return;
-                        auto audioEngine = FMODAudioEngine::sharedEngine();
-                        if (auto channelGroup = audioEngine->m_backgroundMusicChannel) {
-                            unsigned int middleMs = audioEngine->getMusicLengthMS(trackId) / 2;
-                            FMOD::Channel* channel = nullptr;
-                            auto level = self->m_fields->m_currentLevel;
-                            auto musicManager = MusicDownloadManager::sharedState();
-                            auto fmod = FMODAudioEngine::sharedEngine();
-                            float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
-                            auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
-                            auto result = channelGroup->getChannel(0, &channel);
-                            if (result == FMOD_OK && channel) {
-                                auto setResult = channel->setPosition(middleMs, 1);
-                                fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, 1);
-                                Mod::get()->setSavedValue("levelMusicPosition", static_cast<int>(middleMs));
-                                log::info("(Built-in) Channel position set result: {}, saved middle position: {} ms", (int)setResult, middleMs);
-                            } else {
-                                log::warn("(Built-in) Failed to get channel from group, result: {}", (int)result);
-                            }
-                        } });
-                    log::info("Playing built-in track from middle");
-                }
-                else
-                {
-                    log::info("Playing built-in track from start");
-                    Mod::get()->setSavedValue("levelMusicPosition", 0);
-                }
+                playSongWithOptionalMid(gd::string(resourcePath.string()), level->m_audioTrack, fadeTime, playMid, "Built-in");
             }
             else
             {
@@ -293,7 +256,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
 
         auto fmod = FMODAudioEngine::sharedEngine();
         fmod->stopAllMusic(true);
-        playCustomSong(songPath, fadeTime, playMid);
+        playSongWithOptionalMid(songPath, 1, fadeTime, playMid, "Custom");
     }
 
     void onExitTransitionDidStart()
@@ -496,7 +459,7 @@ class $modify(MyPlayLayer, PlayLayer)
                 log::info("Custom song missing after PlayLayer quit, falling back to menu music");
             }
 
-            if (level && level->m_audioTrack != 0)
+            if (level)
             {
                 auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
                 if (!audioPath.empty())
@@ -530,6 +493,7 @@ class $modify(MyPlayLayer, PlayLayer)
             {
                 log::info("No level music to restore, playing menu music");
                 gm->playMenuMusic();
-            } });
+            }
+        });
     }
 };

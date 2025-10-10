@@ -1,3 +1,7 @@
+# v1.0.9
+
+- Fixed issues with the in built music being broken
+
 # v1.0.8
 
 - Fixed issue with both custom music and main menu music playing simultaneously when exiting level
