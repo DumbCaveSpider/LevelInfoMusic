@@ -1,6 +1,7 @@
 # v1.0.9
 
 - Fixed issues with the in built music being broken
+- Fixed issues with some sound effects stops playing when exiting level
 
 # v1.0.8
 

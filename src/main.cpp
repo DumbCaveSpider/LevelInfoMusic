@@ -78,8 +78,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
                 if (result == FMOD_OK && channel) {
                     auto setResult = channel->setPosition(middleMs, 1);
                     fmod->playMusic(path, true, fadeTime, 1);
-                    Mod::get()->setSavedValue("levelMusicPosition", static_cast<int>(middleMs));
-                    log::info("({}) Channel position set result: {}, applied & saved middle position: {} ms", kind, (int)setResult, middleMs);
+                    log::info("({}) Channel position set result: {}, applied middle position (savedPos untouched): {} ms", kind, (int)setResult, middleMs);
                 } else {
                     log::warn("({}) Failed to get channel from group, result: {}", kind, (int)result);
                 }
@@ -323,8 +322,7 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         log::info("onPlay triggered - stopping level music");
         fmod->stopAllMusic(true);
         fmod->stopAllMusic(false);
-        fmod->stopAllEffects();
-        log::info("Music stopped, effects stopped");
+        log::info("Music stopped");
         LevelInfoLayer::onPlay(sender);
     }
 
@@ -342,7 +340,6 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         auto fmod = FMODAudioEngine::sharedEngine();
         auto gm = GameManager::sharedState();
         fmod->stopAllMusic(true);
-        fmod->stopAllEffects();
         gm->playMenuMusic();
         log::info("onBack triggered - stopping level music & play menu music");
         stopCheckMusicAndRetry();
@@ -414,7 +411,6 @@ class $modify(MyPlayLayer, PlayLayer)
                 return;
 
             fmod->stopAllMusic(true);
-            fmod->stopAllEffects();
 
             int savedPos = 0;
             if (Mod::get()->hasSavedValue("levelMusicPosition"))
@@ -493,7 +489,6 @@ class $modify(MyPlayLayer, PlayLayer)
             {
                 log::info("No level music to restore, playing menu music");
                 gm->playMenuMusic();
-            }
-        });
+            } });
     }
 };
