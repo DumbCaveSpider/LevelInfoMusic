@@ -26,6 +26,11 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         std::scoped_lock _{s_liveMutex};
         return s_liveInstances.find(ptr) != s_liveInstances.end();
     }
+    static bool anyLive()
+    {
+        std::scoped_lock _{s_liveMutex};
+        return !s_liveInstances.empty();
+    }
 
     struct Fields
     {
@@ -45,8 +50,12 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         explicit SongDownloadForwarder(MyLevelInfoLayer *o) : owner(o) {}
         void downloadSongFinished(int songID) override
         {
-            if (owner && MyLevelInfoLayer::isLive(owner))
-                owner->onSongDownloaded(songID);
+            // Don't call owner directly from the download thread. Queue to main thread.
+            MyLevelInfoLayer *own = owner;
+            Loader::get()->queueInMainThread([own, songID]() {
+                if (own && MyLevelInfoLayer::isLive(own))
+                    own->onSongDownloaded(songID);
+            });
         }
     };
 
@@ -271,9 +280,16 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         // Remove delegate to avoid late callbacks after the layer is leaving
         if (m_fields->m_musicDelegate)
         {
-            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
-            delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate); // get this dum dum delegate out of here xd
+            auto forwarder = static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            // remove from manager first
+            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(forwarder);
+            // clear owner so any in-flight callbacks won't dereference the layer
+            forwarder->owner = nullptr;
             m_fields->m_musicDelegate = nullptr;
+            // schedule deletion on main thread to avoid deleting while manager may be dispatching
+            Loader::get()->queueInMainThread([forwarder]() {
+                delete forwarder;
+            });
         }
 
         // no play layer? means we're exiting back to menu, not entering PlayLayer
@@ -301,9 +317,11 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             stopCheckMusicAndRetry();
             if (m_fields->m_musicDelegate)
             {
-                MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
-                delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+                auto forwarder = static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+                MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(forwarder);
+                forwarder->owner = nullptr;
                 m_fields->m_musicDelegate = nullptr;
+                Loader::get()->queueInMainThread([forwarder]() { delete forwarder; });
             }
             LevelInfoLayer::onPlay(sender);
             return;
@@ -315,9 +333,11 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
 
         if (m_fields->m_musicDelegate)
         {
-            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
-            delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            auto forwarder = static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(forwarder);
+            forwarder->owner = nullptr;
             m_fields->m_musicDelegate = nullptr;
+            Loader::get()->queueInMainThread([forwarder]() { delete forwarder; });
         }
         log::info("onPlay triggered - stopping level music");
         fmod->stopAllMusic(true);
@@ -409,6 +429,13 @@ class $modify(MyPlayLayer, PlayLayer)
 
             if (!fmod)
                 return;
+
+            // don't restore level music
+            if (!MyLevelInfoLayer::anyLive()) {
+                log::info("No LevelInfoLayer present after PlayLayer quit; playing menu music instead");
+                if (gm) gm->playMenuMusic();
+                return;
+            }
 
             fmod->stopAllMusic(true);
 

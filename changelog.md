@@ -1,3 +1,7 @@
+# v1.1.0
+
+- Fixed issues where the custo music is still playing when exiting level from the editor
+
 # v1.0.9
 
 - Fixed issues with the in built music being broken
