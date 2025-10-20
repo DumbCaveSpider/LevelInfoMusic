@@ -91,6 +91,8 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
     {
         if (m_fields->m_isChecking)
             return;
+        if (!m_fields->m_currentLevel || m_fields->m_currentLevel->m_songID == 0)
+            return;
         m_fields->m_isChecking = true;
         this->schedule(schedule_selector(MyLevelInfoLayer::checkMusicAndRetry), 0.1f);
         log::debug("Started checkMusicAndRetry polling");
@@ -111,6 +113,12 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         if (!level)
             return;
 
+        // dont run for built-in tracks
+        if (level->m_songID == 0) {
+            stopCheckMusicAndRetry();
+            return;
+        }
+
         // already started playing something for this layer, stop polling
         if (m_fields->m_isActive)
         {
@@ -118,15 +126,12 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             return;
         }
 
-        if (level->m_songID != 0)
+        auto musicManager = MusicDownloadManager::sharedState();
+        if (musicManager->isSongDownloaded(level->m_songID))
         {
-            auto musicManager = MusicDownloadManager::sharedState();
-            if (musicManager->isSongDownloaded(level->m_songID))
-            {
-                log::info("Polling detected custom song downloaded (ID: {}), playing now", level->m_songID);
-                stopCheckMusicAndRetry();
-                initializeLevelMusic();
-            }
+            log::info("Polling detected custom song downloaded (ID: {}), playing now", level->m_songID);
+            stopCheckMusicAndRetry();
+            initializeLevelMusic();
         }
     }
 
@@ -271,8 +276,10 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         // Remove delegate to avoid late callbacks after the layer is leaving
         if (m_fields->m_musicDelegate)
         {
-            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
-            delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate); // get this dum dum delegate out of here xd
+            auto forwarder = static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            forwarder->owner = nullptr; // Prevent use-after-free
+            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(forwarder);
+            delete forwarder;
             m_fields->m_musicDelegate = nullptr;
         }
 
@@ -301,8 +308,10 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
             stopCheckMusicAndRetry();
             if (m_fields->m_musicDelegate)
             {
-                MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
-                delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+                auto forwarder = static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+                forwarder->owner = nullptr;
+                MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(forwarder);
+                delete forwarder;
                 m_fields->m_musicDelegate = nullptr;
             }
             LevelInfoLayer::onPlay(sender);
@@ -315,8 +324,10 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
 
         if (m_fields->m_musicDelegate)
         {
-            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
-            delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            auto forwarder = static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            forwarder->owner = nullptr;
+            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(forwarder);
+            delete forwarder;
             m_fields->m_musicDelegate = nullptr;
         }
         log::info("onPlay triggered - stopping level music");
@@ -376,8 +387,10 @@ class $modify(MyLevelInfoLayer, LevelInfoLayer)
         unregisterLive(this);
         if (m_fields->m_musicDelegate)
         {
-            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate));
-            delete static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            auto forwarder = static_cast<SongDownloadForwarder *>(m_fields->m_musicDelegate);
+            forwarder->owner = nullptr;
+            MusicDownloadManager::sharedState()->removeMusicDownloadDelegate(forwarder);
+            delete forwarder;
             m_fields->m_musicDelegate = nullptr;
         }
     }
