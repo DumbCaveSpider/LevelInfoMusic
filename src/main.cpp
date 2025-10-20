@@ -1,9 +1,12 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/EditLevelLayer.hpp>
 #include <filesystem>
 #include <unordered_set>
 #include <mutex>
+
+class EditLevelLayer;
 
 using namespace geode::prelude;
 
@@ -425,9 +428,10 @@ class $modify(MyPlayLayer, PlayLayer)
 
             fmod->stopAllMusic(true);
 
-            // Only restore level music if returning to LevelInfoLayer
+            // LevelInfoLayer or EditLevelLayer?
             auto nextScene = CCDirector::sharedDirector()->getNextScene();
             bool goingToLevelInfo = false;
+            bool goingToEditorLevel = false;
             if (nextScene)
             {
                 auto children = nextScene->getChildren();
@@ -438,6 +442,11 @@ class $modify(MyPlayLayer, PlayLayer)
                         if (typeinfo_cast<LevelInfoLayer*>(node))
                         {
                             goingToLevelInfo = true;
+                            break;
+                        }
+                        if (typeinfo_cast<EditLevelLayer*>(node))
+                        {
+                            goingToEditorLevel = true;
                             break;
                         }
                     }
@@ -526,7 +535,7 @@ class $modify(MyPlayLayer, PlayLayer)
                 }
             }
 
-            // If not going to LevelInfoLayer, always play menu music
+            // If going to EditLevelLayer or any other scene, always play menu music
             if (gm)
             {
                 log::info("Not returning to LevelInfoLayer, playing menu music");
