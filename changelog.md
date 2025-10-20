@@ -1,6 +1,7 @@
 # v1.1.0
 
 - Fixed issues where the custo music is still playing when exiting level from the editor
+- Fixed issues where game crashed randomly when a custom music downloaded finished
 
 # v1.0.9
 
