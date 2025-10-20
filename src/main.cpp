@@ -415,7 +415,7 @@ class $modify(MyPlayLayer, PlayLayer)
         PlayLayer::onQuit();
 
         Loader::get()->queueInMainThread([level]()
-                                         {
+        {
             auto fmod = FMODAudioEngine::sharedEngine();
             auto gm = GameManager::sharedState();
             auto musicManager = MusicDownloadManager::sharedState();
@@ -425,83 +425,113 @@ class $modify(MyPlayLayer, PlayLayer)
 
             fmod->stopAllMusic(true);
 
-            int savedPos = 0;
-            if (Mod::get()->hasSavedValue("levelMusicPosition"))
+            // Only restore level music if returning to LevelInfoLayer
+            auto nextScene = CCDirector::sharedDirector()->getNextScene();
+            bool goingToLevelInfo = false;
+            if (nextScene)
             {
-                savedPos = Mod::get()->getSavedValue<int>("levelMusicPosition");
-            }
-
-            float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
-
-            if (level && level->m_songID != 0)
-            {
-                if (musicManager && musicManager->isSongDownloaded(level->m_songID))
-                {
-                    auto songPath = musicManager->pathForSong(level->m_songID);
-                    log::info("Restoring custom song after PlayLayer quit: {}", songPath);
-                    fmod->playMusic(songPath, true, fadeTime, 1);
-
-                    if (savedPos > 0)
+                auto children = nextScene->getChildren();
+                if (children) {
+                    for (unsigned int i = 0; i < children->count(); ++i)
                     {
-                        Loader::get()->queueInMainThread([savedPos]()
-                                                         {
-                            auto fmod = FMODAudioEngine::sharedEngine();
-                            if (!fmod || !fmod->m_backgroundMusicChannel)
-                                return;
-
-                            FMOD::Channel *channel = nullptr;
-                            auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
-                            if (result == FMOD_OK && channel)
-                            {
-                                channel->setPosition(Mod::get()->getSavedValue<int>("levelMusicPosition"), (FMOD_TIMEUNIT)1);
-                                log::info("Re-applied saved custom song position: {} ms", Mod::get()->getSavedValue<int>("levelMusicPosition"));
-                            }
-                            else
-                            {
-                                log::warn("Failed to re-apply custom song position, result: {}", (int)result);
-                            }
-                        });
+                        auto node = static_cast<CCNode*>(children->objectAtIndex(i));
+                        if (typeinfo_cast<LevelInfoLayer*>(node))
+                        {
+                            goingToLevelInfo = true;
+                            break;
+                        }
                     }
-                    return;
-                }
-
-                log::info("Custom song missing after PlayLayer quit, falling back to menu music");
-            }
-
-            if (level)
-            {
-                auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
-                if (!audioPath.empty())
-                {
-                    auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
-                    log::info("Restoring built-in song after PlayLayer quit: {}", level->m_audioTrack);
-                    fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, level->m_audioTrack);
-
-                    if (savedPos > 0)
-                    {
-                        Loader::get()->queueInMainThread([savedPos]()
-                                                         {
-                            auto fmod = FMODAudioEngine::sharedEngine();
-                            if (!fmod || !fmod->m_backgroundMusicChannel)
-                                return;
-
-                            FMOD::Channel *channel = nullptr;
-                            auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
-                            if (result == FMOD_OK && channel)
-                            {
-                                channel->setPosition(static_cast<unsigned int>(savedPos), (FMOD_TIMEUNIT)1);
-                                log::info("Re-applied saved built-in song position: {} ms", savedPos);
-                            }
-                        });
-                    }
-                    return;
                 }
             }
 
+            if (goingToLevelInfo)
+            {
+                int savedPos = 0;
+                if (Mod::get()->hasSavedValue("levelMusicPosition"))
+                {
+                    savedPos = Mod::get()->getSavedValue<int>("levelMusicPosition");
+                }
+
+                float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+
+                if (level && level->m_songID != 0)
+                {
+                    if (musicManager && musicManager->isSongDownloaded(level->m_songID))
+                    {
+                        auto songPath = musicManager->pathForSong(level->m_songID);
+                        log::info("Restoring custom song after PlayLayer quit: {}", songPath);
+                        fmod->playMusic(songPath, true, fadeTime, 1);
+
+                        if (savedPos > 0)
+                        {
+                            Loader::get()->queueInMainThread([savedPos]()
+                            {
+                                auto fmod = FMODAudioEngine::sharedEngine();
+                                if (!fmod || !fmod->m_backgroundMusicChannel)
+                                    return;
+
+                                FMOD::Channel *channel = nullptr;
+                                auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
+                                if (result == FMOD_OK && channel)
+                                {
+                                    channel->setPosition(Mod::get()->getSavedValue<int>("levelMusicPosition"), (FMOD_TIMEUNIT)1);
+                                    log::info("Re-applied saved custom song position: {} ms", Mod::get()->getSavedValue<int>("levelMusicPosition"));
+                                }
+                                else
+                                {
+                                    log::warn("Failed to re-apply custom song position, result: {}", (int)result);
+                                }
+                            });
+                        }
+                        return;
+                    }
+
+                    log::info("Custom song missing after PlayLayer quit, falling back to menu music");
+                }
+
+                if (level)
+                {
+                    auto audioPath = LevelTools::getAudioFileName(level->m_audioTrack);
+                    if (!audioPath.empty())
+                    {
+                        auto resourcePath = (geode::dirs::getResourcesDir() / std::string(audioPath));
+                        log::info("Restoring built-in song after PlayLayer quit: {}", level->m_audioTrack);
+                        fmod->setBackgroundMusicVolume(0.0f);
+                        fmod->playMusic(gd::string(resourcePath.string()), true, fadeTime, level->m_audioTrack);
+
+                        if (savedPos > 0)
+                        {
+                            Loader::get()->queueInMainThread([savedPos]()
+                            {
+                                auto fmod = FMODAudioEngine::sharedEngine();
+                                if (!fmod || !fmod->m_backgroundMusicChannel)
+                                    return;
+
+                                FMOD::Channel *channel = nullptr;
+                                auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
+                                if (result == FMOD_OK && channel)
+                                {
+                                    channel->setPosition(static_cast<unsigned int>(savedPos), (FMOD_TIMEUNIT)1);
+                                    log::info("Re-applied saved built-in song position: {} ms", savedPos);
+                                }
+                                fmod->setBackgroundMusicVolume(1.0f);
+                            });
+                        }
+                        else
+                        {
+                            fmod->setBackgroundMusicVolume(1.0f);
+                        }
+                        return;
+                    }
+                }
+            }
+
+            // If not going to LevelInfoLayer, always play menu music
             if (gm)
             {
-                log::info("No level music to restore, playing menu music");
+                log::info("Not returning to LevelInfoLayer, playing menu music");
                 gm->playMenuMusic();
-            } });
+            }
+        });
     }
 };
