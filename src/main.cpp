@@ -7,13 +7,11 @@ using namespace geode::prelude;
 // i have to refactor the entire code because its horrible
 // this time its more compact and actual readable
 // trust me this is WAY WAY better and didnt took that long to do
+
+unsigned int g_backgroundMusicPosition = 0; // global variable to store background music position
+
 class $modify(LevelInfoLayer)
 {
-    struct Fields
-    {
-        unsigned int m_backgroundMusicPosition = 0;
-    };
-
     void onEnterTransitionDidFinish()
     {
         LevelInfoLayer::onEnterTransitionDidFinish(); // call original function
@@ -28,7 +26,7 @@ class $modify(LevelInfoLayer)
         bool randomOffset = Mod::get()->getSettingValue<bool>("randomOffset");
 
         log::info("music used: {}", level->m_songID);
-
+        log::info("music length: {}", fmod->getMusicLengthMS(0));
         // check if the level has custom music
         if (level && level->m_songID != 0)
         {
@@ -46,6 +44,9 @@ class $modify(LevelInfoLayer)
                 log::warn("no custom music found for id {}", level->m_songID);
                 return;
             }
+
+            log::info("playing custom music: {}", songPath);
+
             fmod->stopAllMusic(true);
             fmod->playMusic(songPath, true, fadeTime, 0);
 
@@ -80,6 +81,8 @@ class $modify(LevelInfoLayer)
                 log::warn("no audio track found for id {}", level->m_audioTrack);
                 return;
             }
+            log::info("playing default track: {}", trackPath);
+
             fmod->stopAllMusic(true);
             fmod->playMusic(trackPath, true, fadeTime, 0);
 
@@ -116,58 +119,56 @@ class $modify(LevelInfoLayer)
         auto resultBG = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
         if (resultBG == FMOD_OK && channel)
         {
-            channel->getPosition(&m_fields->m_backgroundMusicPosition, FMOD_TIMEUNIT_MS);
-            log::info("store menu bg music position: {}", m_fields->m_backgroundMusicPosition);
+            channel->getPosition(&g_backgroundMusicPosition, FMOD_TIMEUNIT_MS);
+            log::info("store menu bg music position: {}", g_backgroundMusicPosition);
         }
 
         return true;
     }
 
+    void loadLevelStep()
+    {
+        auto fmod = FMODAudioEngine::sharedEngine();
+        fmod->stopAllMusic(true);
+        log::info("stop music when loading level");
+        LevelInfoLayer::loadLevelStep();
+    }
+
     // stop music if one of these are called
     void keyBackClicked()
     {
-        auto level = this->m_level;
-        if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != -1)
-        {
-            this->stopCurrentMusic();
-            this->returnToCurrentBGMusicPosition();
-        }
+        this->stopCurrentMusic(this->m_level);
         LevelInfoLayer::keyBackClicked();
     }
-
     void onBack(CCObject *sender)
     {
-        auto level = this->m_level;
-        if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != -1)
-        {
-            this->stopCurrentMusic();
-            this->returnToCurrentBGMusicPosition();
-        }
+        this->stopCurrentMusic(this->m_level);
         LevelInfoLayer::onBack(sender);
     }
 
     // my wacky functions :D
-    void stopCurrentMusic()
+    void stopCurrentMusic(GJGameLevel *level)
     {
-        FMODAudioEngine::sharedEngine()->stopAllMusic(true);
-        GameManager::sharedState()->playMenuMusic();
-    }
-
-    void returnToCurrentBGMusicPosition()
-    {
-        FMODAudioEngine::sharedEngine()->stopAllMusic(true);
-        GameManager::sharedState()->playMenuMusic();
-        if (MusicDownloadManager::sharedState()->isSongDownloaded(this->m_level->m_songID) || this->m_level->m_audioTrack != 0)
+        bool customtrack = MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID);
+        bool emptytrack = LevelTools::getAudioFileName(level->m_audioTrack).empty();
+        log::debug("custom: {} / empty track: {}", customtrack, emptytrack);
+        if (customtrack || !emptytrack)
         {
+            log::info("stop custom music when exiting level info");
+            FMODAudioEngine::sharedEngine()->stopAllMusic(true);
+            GameManager::sharedState()->playMenuMusic();
+
             FMOD::Channel *channel = nullptr;
             auto fmod = FMODAudioEngine::sharedEngine();
+            auto musicManager = MusicDownloadManager::sharedState();
             auto resultBG = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
             if (resultBG == FMOD_OK && channel)
             {
-                channel->setPosition(m_fields->m_backgroundMusicPosition, FMOD_TIMEUNIT_MS);
-                log::info("return to menu bg music position: {}", m_fields->m_backgroundMusicPosition);
+                channel->setPosition(g_backgroundMusicPosition, FMOD_TIMEUNIT_MS);
+                log::info("restore menu bg music position: {}", g_backgroundMusicPosition);
             }
         }
+        return;
     }
 };
 
@@ -210,8 +211,9 @@ class $modify(CustomSongWidget)
     void deleteSong()
     {
         // play the menu music when deleting the custom song
+        CustomSongWidget::deleteSong();
         FMODAudioEngine::sharedEngine()->stopAllMusic(true);
         GameManager::sharedState()->playMenuMusic();
-        CustomSongWidget::deleteSong();
+        g_backgroundMusicPosition = 0; // reset background music position
     }
 };

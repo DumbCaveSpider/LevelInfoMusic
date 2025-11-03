@@ -2,6 +2,8 @@
 
 - Fixed issue where the random offset isn't applied when the song finished downloading
 - Fixed issue where on mobile, the preview music and the menu music playing at the same time
+- Fixed issue where the preview music still plays while transitioning to the level
+- Fixed issue where built-in track doesn't stop playing when exiting level info screen
 - Changed the preview music FMOD channel to 0 for consistency
 
 # v2.0.0
