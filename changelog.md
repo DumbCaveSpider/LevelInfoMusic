@@ -1,6 +1,6 @@
 # v2.0.0
 
-- Refactored the entire codebase because I wanted to make this better and also it was kinda bad code *(From 546 lines of code to 173 lines of code)*
+- **Refactored the entire codebase because I wanted to make this better and also it was kinda bad code**
 - Better detection on where to play the preview music *(It will always play the preview music if you enter to the level info screen)*
 - Better restore menu music position when exiting level info screen
 - Background music automatically plays when deleting custom music
