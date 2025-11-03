@@ -47,13 +47,14 @@ class $modify(LevelInfoLayer)
                 return;
             }
             fmod->stopAllMusic(true);
-            fmod->playMusic(songPath, true, fadeTime, 1);
+            fmod->playMusic(songPath, true, fadeTime, 0);
 
             auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
             if (result == FMOD_OK && channel)
             {
                 if (playMid)
                 {
+                    channel->setChannelGroup(fmod->m_backgroundMusicChannel);
                     channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
                     randomOffset = false;
                 }
@@ -80,7 +81,7 @@ class $modify(LevelInfoLayer)
                 return;
             }
             fmod->stopAllMusic(true);
-            fmod->playMusic(trackPath, true, fadeTime, 1);
+            fmod->playMusic(trackPath, true, fadeTime, 0);
 
             auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
             if (result == FMOD_OK && channel)
@@ -180,7 +181,7 @@ class $modify(CustomSongWidget)
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
         bool randomOffset = Mod::get()->getSettingValue<bool>("randomOffset");
-        FMODAudioEngine::sharedEngine()->playMusic(songPath, true, fadeTime, 1); // play the music
+        FMODAudioEngine::sharedEngine()->playMusic(songPath, true, fadeTime, 0); // play the music
         if (playMid)
         {
             FMOD::Channel *channel = nullptr;

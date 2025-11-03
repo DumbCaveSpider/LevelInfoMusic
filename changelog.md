@@ -2,6 +2,7 @@
 
 - Fixed issue where the random offset isn't applied when the song finished downloading
 - Fixed issue where on mobile, the preview music and the menu music playing at the same time
+- Changed the preview music FMOD channel to 0 for consistency
 
 # v2.0.0
 
