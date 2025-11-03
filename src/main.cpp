@@ -46,7 +46,7 @@ class $modify(LevelInfoLayer)
                 log::warn("no custom music found for id {}", level->m_songID);
                 return;
             }
-
+            fmod->stopAllMusic(true);
             fmod->playMusic(songPath, true, fadeTime, 1);
 
             auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
@@ -79,6 +79,7 @@ class $modify(LevelInfoLayer)
                 log::warn("no audio track found for id {}", level->m_audioTrack);
                 return;
             }
+            fmod->stopAllMusic(true);
             fmod->playMusic(trackPath, true, fadeTime, 1);
 
             auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
