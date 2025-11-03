@@ -1,3 +1,7 @@
+# v2.0.1
+
+- Fixed issue where the random offset isn't applied when the song finished downloading
+
 # v2.0.0
 
 - **Refactored the entire codebase because I wanted to make this better and also it was kinda bad code**

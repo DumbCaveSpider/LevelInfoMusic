@@ -178,6 +178,7 @@ class $modify(CustomSongWidget)
         auto songPath = MusicDownloadManager::sharedState()->pathForSong(this->m_customSongID);
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
+        bool randomOffset = Mod::get()->getSettingValue<bool>("randomOffset");
         FMODAudioEngine::sharedEngine()->playMusic(songPath, true, fadeTime, 1); // play the music
         if (playMid)
         {
@@ -186,7 +187,19 @@ class $modify(CustomSongWidget)
             auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
             if (result == FMOD_OK && channel)
             {
-                channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
+                if (playMid)
+                {
+                    channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
+                }
+                if (randomOffset)
+                {
+                    // get a random position between 0 and the length of the music
+                    unsigned int musicLength = fmod->getMusicLengthMS(0);
+                    unsigned int randomPosition = GameToolbox::fast_rand() % musicLength;
+                    channel->setPosition(randomPosition, FMOD_TIMEUNIT_MS);
+                    log::info("random position: {}", randomPosition);
+                    playMid = false;
+                }
             }
         }
         CustomSongWidget::downloadSongFinished(p0);
