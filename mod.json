@@ -31,8 +31,16 @@
 		"playMid":{
 			"type": "bool",
 			"name": "Preview Music mid-song",
-			"description": "Plays the music at the middle of the playback.",
-			"default": true
+			"description": "Plays the preview music at the middle of the playback.",
+			"default": true,
+			"enable-if": "!randomOffset"
+		},
+		"randomOffset": {
+			"type": "bool",
+			"name": "Random Offset",
+			"description": "Plays the preview music at a random offset each time.",
+			"default": false,
+			"enable-if": "!playMid"
 		}
 	}
 }

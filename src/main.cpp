@@ -25,6 +25,7 @@ class $modify(LevelInfoLayer)
 
         float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
         bool playMid = Mod::get()->getSettingValue<bool>("playMid");
+        bool randomOffset = Mod::get()->getSettingValue<bool>("randomOffset");
 
         log::info("music used: {}", level->m_songID);
 
@@ -49,14 +50,28 @@ class $modify(LevelInfoLayer)
             fmod->playMusic(songPath, true, fadeTime, 1);
 
             auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
-            if (result == FMOD_OK && channel && playMid)
+            if (result == FMOD_OK && channel)
             {
-                channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
+                if (playMid)
+                {
+                    channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
+                    randomOffset = false;
+                }
+
+                if (randomOffset)
+                {
+                    // get a random position between 0 and the length of the music
+                    unsigned int musicLength = fmod->getMusicLengthMS(0);
+                    unsigned int randomPosition = GameToolbox::fast_rand() % musicLength;
+                    channel->setPosition(randomPosition, FMOD_TIMEUNIT_MS);
+                    log::info("random position: {}", randomPosition);
+                    playMid = false;
+                }
             }
         }
 
         // uses default audio track if no custom music
-        if (level && level->m_audioTrack != 0)
+        else if (level && level->m_audioTrack != -1)
         {
             auto trackPath = LevelTools::getAudioFileName(level->m_audioTrack);
             if (trackPath.empty())
@@ -67,9 +82,23 @@ class $modify(LevelInfoLayer)
             fmod->playMusic(trackPath, true, fadeTime, 1);
 
             auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
-            if (result == FMOD_OK && channel && playMid)
+            if (result == FMOD_OK && channel)
             {
-                channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
+                if (playMid)
+                {
+                    channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
+                    randomOffset = false;
+                }
+
+                if (randomOffset)
+                {
+                    // get a random position between 0 and the length of the music
+                    unsigned int musicLength = fmod->getMusicLengthMS(0);
+                    unsigned int randomPosition = GameToolbox::fast_rand() % musicLength;
+                    channel->setPosition(randomPosition, FMOD_TIMEUNIT_MS);
+                    log::info("random position: {}", randomPosition);
+                    playMid = false;
+                }
             }
         }
     }
@@ -96,7 +125,7 @@ class $modify(LevelInfoLayer)
     void keyBackClicked()
     {
         auto level = this->m_level;
-        if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != 0)
+        if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != -1)
         {
             this->stopCurrentMusic();
             this->returnToCurrentBGMusicPosition();
@@ -107,7 +136,7 @@ class $modify(LevelInfoLayer)
     void onBack(CCObject *sender)
     {
         auto level = this->m_level;
-        if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != 0)
+        if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != -1)
         {
             this->stopCurrentMusic();
             this->returnToCurrentBGMusicPosition();

@@ -9,6 +9,7 @@
 - Removed the PlayLayer hook since that is very unnecessary
 - Removed stub code that wasn't really used correctly
 - Preview Music will remember which custom music to play, even when switching levels
+- Added option to play preview music at a random offset
 
 # v1.1.0
 
