@@ -1,8 +1,14 @@
 # 2.0.0
 
-### - Refactored the entire codebase because it was a mess
-- Better detection on when to preview music
+- Refactored the entire codebase because I wanted to make this better and also it was kinda bad code *(From 546 lines of code to 173 lines of code)*
+- Better detection on where to play the preview music *(It will always play the preview music if you enter to the level info screen)*
 - Better restore menu music position when exiting level info screen
+- Background music automatically plays when deleting custom music
+- Fixed issues where the level music doesn't play when you re-enter the level info screen from a different screen
+- Removed delegates that are no longer needed
+- Removed the PlayLayer hook since that is very unnecessary
+- Removed stub code that wasn't really used correctly
+- Preview Music will remember which custom music to play, even when switching levels
 
 # v1.1.0
 

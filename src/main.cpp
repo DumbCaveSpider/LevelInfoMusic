@@ -1,10 +1,12 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
+#include <Geode/modify/CustomSongWidget.hpp>
 
 using namespace geode::prelude;
 
 // i have to refactor the entire code because its horrible
 // this time its more compact and actual readable
+// trust me this is WAY WAY better and didnt took that long to do
 class $modify(LevelInfoLayer)
 {
     struct Fields
@@ -72,11 +74,11 @@ class $modify(LevelInfoLayer)
         }
     }
 
+    // store the current background music position when entering level info
     bool init(GJGameLevel *level, bool challenge)
     {
         if (!LevelInfoLayer::init(level, challenge))
             return false;
-        // store the current background music position
         FMOD::Channel *channel = nullptr;
         auto fmod = FMODAudioEngine::sharedEngine();
         auto musicManager = MusicDownloadManager::sharedState();
@@ -95,18 +97,22 @@ class $modify(LevelInfoLayer)
     {
         auto level = this->m_level;
         if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != 0)
+        {
             this->stopCurrentMusic();
+            this->returnToCurrentBGMusicPosition();
+        }
         LevelInfoLayer::keyBackClicked();
-        this->returnToCurrentBGMusicPosition();
     }
 
     void onBack(CCObject *sender)
     {
         auto level = this->m_level;
         if (MusicDownloadManager::sharedState()->isSongDownloaded(level->m_songID) || level->m_audioTrack != 0)
+        {
             this->stopCurrentMusic();
+            this->returnToCurrentBGMusicPosition();
+        }
         LevelInfoLayer::onBack(sender);
-        this->returnToCurrentBGMusicPosition();
     }
 
     // my wacky functions :D
@@ -131,5 +137,37 @@ class $modify(LevelInfoLayer)
                 log::info("return to menu bg music position: {}", m_fields->m_backgroundMusicPosition);
             }
         }
+    }
+};
+
+class $modify(CustomSongWidget)
+{
+    void downloadSongFinished(int p0)
+    {
+        // auto play the custom music when download finishes
+
+        auto songPath = MusicDownloadManager::sharedState()->pathForSong(this->m_customSongID);
+        float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
+        bool playMid = Mod::get()->getSettingValue<bool>("playMid");
+        FMODAudioEngine::sharedEngine()->playMusic(songPath, true, fadeTime, 1); // play the music
+        if (playMid)
+        {
+            FMOD::Channel *channel = nullptr;
+            auto fmod = FMODAudioEngine::sharedEngine();
+            auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel); // assume the channel playing the music is channel 0
+            if (result == FMOD_OK && channel)
+            {
+                channel->setPosition(fmod->getMusicLengthMS(0) / 2, FMOD_TIMEUNIT_MS);
+            }
+        }
+        CustomSongWidget::downloadSongFinished(p0);
+    }
+
+    void deleteSong()
+    {
+        // play the menu music when deleting the custom song
+        FMODAudioEngine::sharedEngine()->stopAllMusic(true);
+        GameManager::sharedState()->playMenuMusic();
+        CustomSongWidget::deleteSong();
     }
 };
