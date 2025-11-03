@@ -1,3 +1,8 @@
+# v2.0.2
+
+- *massive blunder...*
+- Fixed issue where downloading a custom music and leaving the level info screen causes the menu music to not play at all
+
 # v2.0.1
 
 - Fixed issue where the random offset isn't applied when the song finished downloading

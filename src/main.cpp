@@ -211,6 +211,7 @@ class $modify(CustomSongWidget)
                 }
             }
         }
+        g_customMusicPlayed = true; // set to true since we played the custom music
         CustomSongWidget::downloadSongFinished(p0);
     }
 
