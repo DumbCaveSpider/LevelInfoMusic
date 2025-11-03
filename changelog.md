@@ -1,7 +1,14 @@
+# 2.0.0
+
+### - Refactored the entire codebase because it was a mess
+- Better detection on when to preview music
+- Better restore menu music position when exiting level info screen
+
 # v1.1.0
 
-- Fixed issues where the custo music is still playing when exiting level from the editor
+- Fixed issues where the custom music is still playing when exiting level from the editor
 - Fixed issues where game crashed randomly when a custom music downloaded finished
+- Fixed issues with built-in music playing at the same time
 
 # v1.0.9
 
