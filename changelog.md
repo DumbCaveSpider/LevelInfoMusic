@@ -1,3 +1,7 @@
+# v2.0.3
+
+- Removed unnecessary hooking
+
 # v2.0.2
 
 - *massive blunder...*

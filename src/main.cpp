@@ -141,11 +141,6 @@ class $modify(LevelInfoLayer)
     }
 
     // stop music if one of these are called
-    void keyBackClicked()
-    {
-        this->stopCurrentMusic(this->m_level);
-        LevelInfoLayer::keyBackClicked();
-    }
     void onBack(CCObject *sender)
     {
         this->stopCurrentMusic(this->m_level);
