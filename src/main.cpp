@@ -68,7 +68,10 @@ class $modify(LevelInfoLayer)
                 {
                     // get a random position between 0 and the length of the music
                     unsigned int musicLength = fmod->getMusicLengthMS(0);
-                    unsigned int randomPosition = GameToolbox::fast_rand() % musicLength;
+                    unsigned int randomPosition = 0;
+                    if (musicLength > 0) {
+                        randomPosition = geode::utils::random::generate<unsigned int>(0, musicLength - 1);
+                    }
                     channel->setPosition(randomPosition, FMOD_TIMEUNIT_MS);
                     log::info("random position: {}", randomPosition);
                     playMid = false;
@@ -105,7 +108,10 @@ class $modify(LevelInfoLayer)
                 {
                     // get a random position between 0 and the length of the music
                     unsigned int musicLength = fmod->getMusicLengthMS(0);
-                    unsigned int randomPosition = GameToolbox::fast_rand() % musicLength;
+                    unsigned int randomPosition = 0;
+                    if (musicLength > 0) {
+                        randomPosition = geode::utils::random::generate<unsigned int>(0, musicLength - 1);
+                    }
                     channel->setPosition(randomPosition, FMOD_TIMEUNIT_MS);
                     log::info("random position: {}", randomPosition);
                     playMid = false;
@@ -199,7 +205,10 @@ class $modify(CustomSongWidget)
                 {
                     // get a random position between 0 and the length of the music
                     unsigned int musicLength = fmod->getMusicLengthMS(0);
-                    unsigned int randomPosition = GameToolbox::fast_rand() % musicLength;
+                    unsigned int randomPosition = 0;
+                    if (musicLength > 0) {
+                        randomPosition = geode::utils::random::generate<unsigned int>(0, musicLength - 1);
+                    }
                     channel->setPosition(randomPosition, FMOD_TIMEUNIT_MS);
                     log::info("random position: {}", randomPosition);
                     playMid = false;

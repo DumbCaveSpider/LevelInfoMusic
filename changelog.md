@@ -1,3 +1,8 @@
+# v2.0.4
+
+- Ported to Geode v5.0.0
+- Improved the random offset generation to use Geode's random utilities
+
 # v2.0.3
 
 - Removed unnecessary hooking

@@ -1,14 +1,14 @@
 {
-	"geode": "4.9.0",
+	"geode": "5.0.0-alpha.1",
 	"gd": {
-		"win": "2.2074",
-		"android": "2.2074",
-		"mac": "2.2074",
-		"ios": "2.2074"
+		"win": "2.2081",
+		"android": "2.2081",
+		"mac": "2.2081",
+		"ios": "2.2081"
 	},
 	"id": "arcticwoof.level_info_music",
 	"name": "Level Info Music",
-	"version": "v2.0.3",
+	"version": "v2.0.4",
 	"developer": "ArcticWoof",
 	"description": "Plays a preview of the music in level info.",
 	"tags": [
