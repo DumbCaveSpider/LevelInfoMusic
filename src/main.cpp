@@ -1,6 +1,8 @@
 #include "Geode/cocos/cocoa/CCObject.h"
 #include "Geode/loader/Log.hpp"
 #include <Geode/Geode.hpp>
+#include <thread>
+#include <chrono>
 #include <Geode/modify/CustomSongWidget.hpp>
 #include <Geode/modify/EditLevelLayer.hpp>
 #include <Geode/modify/LevelInfoLayer.hpp>
@@ -56,6 +58,34 @@ void applyPositioning(FMODAudioEngine *fmod, FMOD::Channel *channel,
   }
 }
 
+// Try to play the music and apply positioning once the channel is active.
+// Returns true if playback was confirmed and positioning applied.
+bool playMusicAndApply(const std::string &path, float fadeTime, bool playMid, bool randomOffset) {
+  auto fmod = FMODAudioEngine::sharedEngine();
+  fmod->stopAllMusic(true);
+  fmod->playMusic(path, true, fadeTime, 0);
+
+  for (int i = 0; i < 10; ++i) {
+    FMOD::Channel *channel = nullptr;
+    auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
+    if (result == FMOD_OK && channel) {
+      bool isPlaying = false;
+      channel->isPlaying(&isPlaying);
+      if (isPlaying || fmod->getMusicLengthMS(0) > 0) {
+        applyPositioning(fmod, channel, playMid, randomOffset);
+        g_customMusicPlayed = true;
+        log::debug("music started: {}", path);
+        return true;
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+
+  log::warn("failed to start music: {}", path);
+  g_customMusicPlayed = false;
+  return false;
+}
+
 void stopAndRestoreMenuMusicIfCustomPlayed() {
   if (!g_customMusicPlayed) {
     log::info("custom music was not played, not stopping music");
@@ -104,14 +134,9 @@ class $modify(LevelInfoLayer) {
 
       log::info("playing custom music: {}", songPath);
 
-      fmod->stopAllMusic(true);
-      fmod->playMusic(songPath, true, fadeTime, 0);
-      g_customMusicPlayed = true;
-
-      auto result = fmod->m_backgroundMusicChannel->getChannel(
-          0, &channel); // assume the channel playing the music is channel 0
-      if (result == FMOD_OK && channel) {
-        applyPositioning(fmod, channel, playMid, randomOffset);
+      if (!playMusicAndApply(songPath, fadeTime, playMid, randomOffset)) {
+        g_customMusicPlayed = false;
+        return;
       }
     }
 
@@ -125,14 +150,9 @@ class $modify(LevelInfoLayer) {
       }
       log::info("playing default track: {}", trackPath);
 
-      fmod->stopAllMusic(true);
-      fmod->playMusic(trackPath, true, fadeTime, 0);
-      g_customMusicPlayed = true;
-
-      auto result = fmod->m_backgroundMusicChannel->getChannel(
-          0, &channel); // assume the channel playing the music is channel 0
-      if (result == FMOD_OK && channel) {
-        applyPositioning(fmod, channel, playMid, randomOffset);
+      if (!playMusicAndApply(trackPath, fadeTime, playMid, randomOffset)) {
+        g_customMusicPlayed = false;
+        return;
       }
     }
   }
@@ -174,17 +194,10 @@ class $modify(CustomSongWidget) {
     float fadeTime = Mod::get()->getSettingValue<float>("fadeTime");
     bool playMid = Mod::get()->getSettingValue<bool>("playMid");
     bool randomOffset = Mod::get()->getSettingValue<bool>("randomOffset");
-    FMODAudioEngine::sharedEngine()->playMusic(songPath, true, fadeTime,
-                                               0); // play the music
-    if (playMid || randomOffset) {
-      FMOD::Channel *channel = nullptr;
-      auto fmod = FMODAudioEngine::sharedEngine();
-      auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
-      if (result == FMOD_OK && channel) {
-        applyPositioning(fmod, channel, playMid, randomOffset);
-      }
+    // play and apply positioning
+    if (!playMusicAndApply(songPath, fadeTime, playMid, randomOffset)) {
+      g_customMusicPlayed = false;
     }
-    g_customMusicPlayed = true; // set to true since we played the custom music
     CustomSongWidget::downloadSongFinished(p0);
   }
 
@@ -256,15 +269,9 @@ class $modify(EditLevelLayer) {
 
       log::info("playing custom music: {}", songPath);
 
-      fmod->stopAllMusic(true);
-      fmod->playMusic(songPath, true, fadeTime, 0);
-      log::debug("custom music played in editor, setting g_customMusicPlayed to true");
-      g_customMusicPlayed = true;
-
-      auto result = fmod->m_backgroundMusicChannel->getChannel(
-          0, &channel); // assume the channel playing the music is channel 0
-      if (result == FMOD_OK && channel) {
-        applyPositioning(fmod, channel, playMid, randomOffset);
+      if (!playMusicAndApply(songPath, fadeTime, playMid, randomOffset)) {
+        g_customMusicPlayed = false;
+        return true;
       }
     }
 
@@ -278,14 +285,9 @@ class $modify(EditLevelLayer) {
       }
       log::info("playing default track: {}", trackPath);
 
-      fmod->stopAllMusic(true);
-      fmod->playMusic(trackPath, true, fadeTime, 0);
-      g_customMusicPlayed = true;
-      log::debug("default music played in editor, setting g_customMusicPlayed to true");
-
-      auto result = fmod->m_backgroundMusicChannel->getChannel(0, &channel);
-      if (result == FMOD_OK && channel) {
-        applyPositioning(fmod, channel, playMid, randomOffset);
+      if (!playMusicAndApply(trackPath, fadeTime, playMid, randomOffset)) {
+        g_customMusicPlayed = false;
+        return true;
       }
     }
 
