@@ -7,10 +7,10 @@
 		"ios": "2.2081"
 	},
 	"id": "arcticwoof.level_info_music",
-	"name": "Level Info Music",
+	"name": "Automatic Preview Music",
 	"version": "v2.0.4",
 	"developer": "ArcticWoof",
-	"description": "Plays a preview of the music in level info.",
+	"description": "Plays a preview of the music in level info and edit level screens.",
 	"tags": [
 		"enhancement",
 		"music"
@@ -41,6 +41,12 @@
 			"description": "Plays the preview music at a random offset each time.",
 			"default": false,
 			"enable-if": "!playMid"
+		},
+		"playEditorLevel": {
+			"type": "bool",
+			"name": "Play in Editor Level",
+			"description": "Plays the preview music in the Edit Level layer.",
+			"default": true
 		}
 	}
 }

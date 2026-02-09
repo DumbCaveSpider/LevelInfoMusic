@@ -2,6 +2,8 @@
 
 - Ported to Geode v5.0.0
 - Improved the random offset generation to use Geode's random utilities
+- Added Auto Preview Music at the Edit Level Layer
+- Renamed from **Level Info Music** -> **Automatic Preview Music**
 
 # v2.0.3
 
