@@ -1,3 +1,7 @@
+# v2.0.5
+
+- Bump to Geode v6
+
 # v2.0.4
 
 - Ported to Geode v5.0.0
